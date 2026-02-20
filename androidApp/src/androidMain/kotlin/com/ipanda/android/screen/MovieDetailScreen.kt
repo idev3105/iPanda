@@ -1,6 +1,7 @@
 package com.ipanda.android.screen
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -69,7 +70,6 @@ import com.ipanda.android.ui.SurfaceDark
 import com.ipanda.android.ui.SurfaceVariant
 import com.ipanda.android.ui.shimmerEffect
 import com.ipanda.domain.Episode
-import com.ipanda.domain.EpisodeGroup
 import com.ipanda.domain.Movie
 import com.ipanda.domain.StreamSource
 import com.ipanda.domain.repository.MovieRepository
@@ -93,20 +93,18 @@ fun MovieDetailScreen(
     onPlayClick: (List<StreamSource>, String) -> Unit
 ) {
     val scope = rememberCoroutineScope()
+    var activeMovieUrl by remember { mutableStateOf(movieUrl) }
     var movie by remember { mutableStateOf<Movie?>(null) }
     var isLoading by remember { mutableStateOf(true) }
     var isFavorite by remember { mutableStateOf(false) }
-    
-    var selectedGroupIndex by remember { mutableStateOf(0) }
-    var episodes by remember { mutableStateOf<List<Episode>>(emptyList()) }
-    var isLoadingEpisodes by remember { mutableStateOf(false) }
 
     var sniffingEpisodeUrl by remember { mutableStateOf<String?>(null) }
     var errorDialogMessage by remember { mutableStateOf<String?>(null) }
 
-    LaunchedEffect(movieUrl) {
+    LaunchedEffect(activeMovieUrl) {
+        isLoading = true
         try {
-            movie = withContext(Dispatchers.IO) { movieRepository.getMovieDetail(movieUrl) }
+            movie = withContext(Dispatchers.IO) { movieRepository.getMovieDetail(activeMovieUrl) }
         } catch (e: Exception) {
             errorDialogMessage = "Lỗi load chi tiết phim: ${e.localizedMessage ?: "Không xác định"}"
         } finally {
@@ -119,19 +117,6 @@ fun MovieDetailScreen(
             favoriteRepository.isFavorite(id).collect { isFav ->
                 isFavorite = isFav
             }
-        }
-    }
-
-    // Separate effect for episodes to avoid re-checking favorite status on group change
-    LaunchedEffect(movie) {
-        movie?.episodeGroups?.firstOrNull()?.let { group ->
-            isLoadingEpisodes = true
-            episodes = if (group.url.isNotEmpty()) {
-                withContext(Dispatchers.IO) { movieRepository.getEpisodes(group.url) }
-            } else {
-                group.episodes
-            }
-            isLoadingEpisodes = false
         }
     }
 
@@ -233,46 +218,35 @@ fun MovieDetailScreen(
                         
                         Spacer(modifier = Modifier.height(24.dp))
                         
-                        if (m.episodeGroups.isNotEmpty()) {
-                            EpisodeSection(
-                                groups = m.episodeGroups,
-                                selectedGroupIndex = selectedGroupIndex,
-                                episodes = episodes,
-                                isLoadingEpisodes = isLoadingEpisodes,
-                                sniffingUrl = sniffingEpisodeUrl,
-                                onGroupSelected = { index, group ->
-                                    selectedGroupIndex = index
+                        EpisodeSection(
+                            seasons = m.seasons,
+                            currentMovieUrl = activeMovieUrl,
+                            mainMoviePosterUrl = m.posterUrl,
+                            episodes = m.episodes,
+                            sniffingUrl = sniffingEpisodeUrl,
+                            onSeasonSelected = { season ->
+                                activeMovieUrl = season.url
+                            },
+                            onEpisodeClick = { episode ->
+                                if (sniffingEpisodeUrl == null) {
+                                    sniffingEpisodeUrl = episode.url
                                     scope.launch {
-                                        isLoadingEpisodes = true
-                                        episodes = try {
-                                            if (group.url.isNotEmpty()) {
-                                                withContext(Dispatchers.IO) { movieRepository.getEpisodes(group.url) }
-                                            } else group.episodes
-                                        } catch (e: Exception) { emptyList() }
-                                        isLoadingEpisodes = false
-                                    }
-                                },
-                                onEpisodeClick = { episode ->
-                                    if (sniffingEpisodeUrl == null) {
-                                        sniffingEpisodeUrl = episode.url
-                                        scope.launch {
-                                            try {
-                                                val streams = withContext(Dispatchers.IO) { streamRepository.getStreamUrl(episode.url) }
-                                                if (streams.isNotEmpty()) {
-                                                    onPlayClick(streams, episode.title)
-                                                } else {
-                                                    errorDialogMessage = "Không load được stream"
-                                                }
-                                            } catch (e: Exception) {
-                                                errorDialogMessage = "Lỗi: ${e.localizedMessage}"
-                                            } finally {
-                                                sniffingEpisodeUrl = null
+                                        try {
+                                            val streams = withContext(Dispatchers.IO) { streamRepository.getStreamUrl(episode.url) }
+                                            if (streams.isNotEmpty()) {
+                                                onPlayClick(streams, episode.title)
+                                            } else {
+                                                errorDialogMessage = "Không load được stream"
                                             }
+                                        } catch (e: Exception) {
+                                            errorDialogMessage = "Lỗi: ${e.localizedMessage}"
+                                        } finally {
+                                            sniffingEpisodeUrl = null
                                         }
                                     }
                                 }
-                            )
-                        }
+                            }
+                        )
                         
                         Spacer(modifier = Modifier.navigationBarsPadding())
                         Spacer(modifier = Modifier.height(16.dp))
@@ -355,47 +329,25 @@ fun DetailActions(
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun EpisodeSection(
-    groups: List<EpisodeGroup>,
-    selectedGroupIndex: Int,
+    seasons: List<Movie>,
+    currentMovieUrl: String,
+    mainMoviePosterUrl: String,
     episodes: List<Episode>,
-    isLoadingEpisodes: Boolean,
     sniffingUrl: String?,
-    onGroupSelected: (Int, EpisodeGroup) -> Unit,
+    onSeasonSelected: (Movie) -> Unit,
     onEpisodeClick: (Episode) -> Unit
 ) {
     Column {
-        ScrollableTabRow(
-            selectedTabIndex = selectedGroupIndex,
-            backgroundColor = Color.Transparent,
-            contentColor = NetflixRed,
-            edgePadding = 0.dp,
-            divider = {}
-        ) {
-            groups.forEachIndexed { index, group ->
-                Tab(
-                    selected = selectedGroupIndex == index,
-                    onClick = { onGroupSelected(index, group) },
-                    text = {
-                        Text(
-                            text = group.title,
-                            color = if (selectedGroupIndex == index) Color.White else OnSurfaceMuted,
-                            fontWeight = if (selectedGroupIndex == index) FontWeight.Bold else FontWeight.Normal
-                        )
-                    }
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        if (isLoadingEpisodes) {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                repeat(4) {
-                    Box(modifier = Modifier.size(60.dp).shimmerEffect())
-                }
+        Text(
+            text = "Danh sách tập",
+            style = MaterialTheme.typography.h6,
+            color = Color.White,
+            fontWeight = FontWeight.Bold
+        )
+        
+        if (episodes.isEmpty()) {
+            Box(modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp), contentAlignment = Alignment.Center) {
+                Text("Đang cập nhật tập phim...", color = OnSurfaceMuted)
             }
         } else {
             FlowRow(
@@ -412,6 +364,73 @@ fun EpisodeSection(
                 }
             }
         }
+
+        if (seasons.size > 1) {
+            Spacer(modifier = Modifier.height(24.dp))
+            Text(
+                text = "Các phần khác",
+                style = MaterialTheme.typography.h6,
+                color = Color.White,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            androidx.compose.foundation.lazy.LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                contentPadding = PaddingValues(bottom = 16.dp)
+            ) {
+                items(seasons.size) { index ->
+                    val season = seasons[index]
+                    SeasonItem(
+                        movie = if (season.posterUrl.isEmpty()) season.copy(posterUrl = mainMoviePosterUrl) else season,
+                        isActive = season.url == currentMovieUrl,
+                        onClick = { onSeasonSelected(season) }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun SeasonItem(movie: Movie, isActive: Boolean, onClick: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .width(110.dp)
+            .clickable(onClick = onClick)
+    ) {
+        Box {
+            AsyncImage(
+                model = movie.posterUrl,
+                contentDescription = movie.title,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(2f / 3f)
+                    .background(SurfaceVariant, RoundedCornerShape(8.dp))
+                    .then(
+                        if (isActive) Modifier.background(NetflixRed.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
+                        else Modifier
+                    )
+            )
+            if (isActive) {
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .background(NetflixRed.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
+                        .border(2.dp, NetflixRed, RoundedCornerShape(8.dp))
+                )
+            }
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = movie.title,
+            style = MaterialTheme.typography.caption,
+            color = if (isActive) NetflixRed else Color.White,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal
+        )
     }
 }
 

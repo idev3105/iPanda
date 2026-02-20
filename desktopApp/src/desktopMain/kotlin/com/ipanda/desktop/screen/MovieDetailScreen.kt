@@ -17,7 +17,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.ipanda.desktop.component.AsyncImage
 import com.ipanda.domain.Episode
-import com.ipanda.domain.EpisodeGroup
 import com.ipanda.domain.Movie
 import com.ipanda.domain.StreamSource
 import com.ipanda.domain.repository.MovieRepository
@@ -40,24 +39,21 @@ fun MovieDetailScreen(
     onPlayStream: (List<StreamSource>, String) -> Unit
 ) {
     val scope = rememberCoroutineScope()
+    var activeMovieUrl by remember { mutableStateOf(movieUrl) }
     var movie by remember { mutableStateOf<Movie?>(null) }
     var isLoading by remember { mutableStateOf(true) }
     var isFavorite by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
-
-    // Currently selected episode group + loaded episodes
-    var selectedGroupIndex by remember { mutableStateOf(0) }
-    var episodes by remember { mutableStateOf<List<Episode>>(emptyList()) }
-    var isLoadingEpisodes by remember { mutableStateOf(false) }
 
     // Sniffing state
     var sniffingEpisode by remember { mutableStateOf<String?>(null) }
     var sniffError by remember { mutableStateOf<String?>(null) }
 
     // Load movie detail
-    LaunchedEffect(movieUrl) {
+    LaunchedEffect(activeMovieUrl) {
+        isLoading = true
         try {
-            movie = withContext(Dispatchers.IO) { movieRepository.getMovieDetail(movieUrl) }
+            movie = withContext(Dispatchers.IO) { movieRepository.getMovieDetail(activeMovieUrl) }
         } catch (e: Exception) {
             error = e.message
         }
@@ -67,17 +63,6 @@ fun MovieDetailScreen(
     LaunchedEffect(movie?.id) {
         movie?.id?.let { id ->
             favoriteRepository.isFavorite(id).collect { isFavorite = it }
-        }
-    }
-
-    // Separate effect for episodes
-    LaunchedEffect(movie) {
-        movie?.episodeGroups?.firstOrNull()?.let { group ->
-            if (group.url.isNotEmpty()) {
-                isLoadingEpisodes = true
-                episodes = withContext(Dispatchers.IO) { movieRepository.getEpisodes(group.url) }
-                isLoadingEpisodes = false
-            }
         }
     }
 
@@ -103,7 +88,7 @@ fun MovieDetailScreen(
                     text = movie?.title ?: "Chi tiết phim",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface,
+                    color = Color.White,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -157,7 +142,7 @@ fun MovieDetailScreen(
                                     text = m.title,
                                     style = MaterialTheme.typography.headlineSmall,
                                     fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onBackground,
+                                    color = Color.White,
                                     modifier = Modifier.weight(1f)
                                 )
                                 TextButton(
@@ -225,92 +210,123 @@ fun MovieDetailScreen(
                     HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
                     Spacer(Modifier.height(16.dp))
 
-                    // ── Episode Groups Tabs ──
-                    if (m.episodeGroups.isNotEmpty()) {
-                        Text(
-                            text = "Danh sách tập phim",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onBackground
-                        )
-                        Spacer(Modifier.height(12.dp))
+                    // ── Episodes ──
+                    Text(
+                        text = "Danh sách tập phim",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                    Spacer(Modifier.height(12.dp))
 
-                        ScrollableTabRow(
-                            selectedTabIndex = selectedGroupIndex,
-                            containerColor = Color.Transparent,
-                            contentColor = MaterialTheme.colorScheme.primary,
-                            edgePadding = 0.dp,
-                            divider = {}
-                        ) {
-                            m.episodeGroups.forEachIndexed { index, group ->
-                                Tab(
-                                    selected = selectedGroupIndex == index,
-                                    onClick = {
-                                        selectedGroupIndex = index
-                                        scope.launch {
-                                            isLoadingEpisodes = true
-                                            try {
-                                                episodes = if (group.url.isNotEmpty()) {
-                                                    withContext(Dispatchers.IO) { movieRepository.getEpisodes(group.url) }
-                                                } else {
-                                                    group.episodes
-                                                }
-                                            } catch (e: Exception) {
-                                                episodes = emptyList()
-                                            }
-                                            isLoadingEpisodes = false
+                    if (m.episodes.isEmpty()) {
+                        Text("Không có tập phim", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    } else {
+                        EpisodeGrid(
+                            episodes = m.episodes,
+                            sniffingEpisode = sniffingEpisode,
+                            onEpisodeClick = { episode ->
+                                sniffError = null
+                                sniffingEpisode = episode.url
+                                scope.launch {
+                                    try {
+                                         val streams = withContext(Dispatchers.IO) { streamRepository.getStreamUrl(episode.url) }
+                                          if (streams.isNotEmpty()) {
+                                              onPlayStream(streams, episode.title)
+                                          } else {
+                                              logger.warn { "Failed to sniff stream url for episode: ${episode.url}" }
+                                            sniffError = "Không tìm thấy link phát cho: ${episode.title}"
                                         }
-                                    },
-                                    text = {
-                                        Text(
-                                            text = group.title,
-                                            fontWeight = if (selectedGroupIndex == index) FontWeight.Bold else FontWeight.Normal
-                                        )
+                                    } catch (e: Exception) {
+                                        sniffError = "Lỗi: ${e.message}"
                                     }
-                                )
-                            }
-                        }
-
-                        Spacer(Modifier.height(16.dp))
-
-                        // ── Episodes ──
-                        when {
-                            isLoadingEpisodes -> {
-                                Box(Modifier.fillMaxWidth().height(100.dp), contentAlignment = Alignment.Center) {
-                                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
+                                    sniffingEpisode = null
                                 }
                             }
-                            episodes.isEmpty() -> {
-                                Text("Không có tập phim", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                            else -> {
-                                EpisodeGrid(
-                                    episodes = episodes,
-                                    sniffingEpisode = sniffingEpisode,
-                                    onEpisodeClick = { episode ->
-                                        sniffError = null
-                                        sniffingEpisode = episode.url
-                                        scope.launch {
-                                            try {
-                                                 val streams = withContext(Dispatchers.IO) { streamRepository.getStreamUrl(episode.url) }
-                                                  if (streams.isNotEmpty()) {
-                                                      onPlayStream(streams, episode.title)
-                                                  } else {
-                                                      logger.warn { "Failed to sniff stream url for episode: ${episode.url}" }
-                                                    sniffError = "Không tìm thấy link phát cho: ${episode.title}"
-                                                }
-                                            } catch (e: Exception) {
-                                                sniffError = "Lỗi: ${e.message}"
-                                            }
-                                            sniffingEpisode = null
-                                        }
-                                    }
+                        )
+                    }
+
+                    // ── Seasons (Related Movies) ──
+                    if (m.seasons.size > 1) {
+                        Spacer(Modifier.height(32.dp))
+                        Text(
+                            text = "Các phần khác",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                        Spacer(Modifier.height(16.dp))
+
+                        LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                            contentPadding = PaddingValues(bottom = 16.dp)
+                        ) {
+                            items(m.seasons) { season ->
+                                SeasonItem(
+                                    movie = if (season.posterUrl.isEmpty()) season.copy(posterUrl = m.posterUrl) else season,
+                                    isActive = season.url == activeMovieUrl,
+                                    onClick = { activeMovieUrl = season.url }
                                 )
                             }
                         }
                     }
 
                     // Sniff error
+                    sniffError?.let {
+                        Spacer(Modifier.height(12.dp))
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
+                        ) {
+                            Text(
+                                text = it,
+                                modifier = Modifier.padding(12.dp),
+                                color = MaterialTheme.colorScheme.onErrorContainer
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SeasonItem(movie: Movie, isActive: Boolean, onClick: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .width(140.dp)
+            .clickable(onClick = onClick)
+    ) {
+        Box {
+            AsyncImage(
+                url = movie.posterUrl,
+                contentDescription = movie.title,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(200.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+            )
+            if (isActive) {
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
+                        .border(2.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(8.dp))
+                )
+            }
+        }
+        Spacer(Modifier.height(8.dp))
+        Text(
+            text = movie.title,
+            style = MaterialTheme.typography.bodySmall,
+            color = if (isActive) MaterialTheme.colorScheme.primary else Color.White,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal
+        )
+    }
+}
                     sniffError?.let {
                         Spacer(Modifier.height(12.dp))
                         Card(

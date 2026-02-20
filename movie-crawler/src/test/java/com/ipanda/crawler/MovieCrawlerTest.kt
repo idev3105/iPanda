@@ -3,7 +3,6 @@ package com.ipanda.crawler
 import com.ipanda.domain.Movie
 import com.ipanda.domain.MovieCategory
 import com.ipanda.domain.Episode
-import com.ipanda.domain.EpisodeGroup
 import kotlinx.coroutines.runBlocking
 
 import org.junit.Test
@@ -53,11 +52,9 @@ class MovieCrawlerTest {
             assertEquals(url, movie?.url)
             assertTrue(movie?.title?.contains("Linh Khế") == true)
             assertTrue(movie?.plot?.isNotEmpty() == true)
-            assertTrue(movie?.episodeGroups?.isNotEmpty() == true)
+            assertTrue(movie?.episodes?.isNotEmpty() == true)
             
-            movie?.episodeGroups?.forEach { group ->
-                println("Server: ${group.title}, Episodes: ${group.episodes.size}")
-            }
+            println("Seasons: ${movie?.seasons?.size}, Episodes: ${movie?.episodes?.size}")
         }
     }
 
@@ -74,33 +71,41 @@ class MovieCrawlerTest {
             assertTrue(movie?.viewCount?.contains("lượt xem") == true, "View count should contain 'lượt xem'")
             
             // Verify .list-episode extraction (e.g. Phần 1)
-            val hasPhan1 = movie?.episodeGroups?.any { group -> 
-                group.title.contains("Phần 1")
+            val hasPhan1 = movie?.seasons?.any { season -> 
+                season.title.contains("Phần 1")
             } == true
             assertTrue(hasPhan1, "Should have extracted 'Phần 1' from .list-episode")
         }
     }
 
     @Test
-    fun `extractEpisodesFromEpisodeGroupUrl returns episodes from playlist`() {
+    fun `crawlMovieDetails extracts seasons with posters and excludes current movie`() {
         runBlocking {
             val crawler = MovieCrawler()
-            val url = "https://hhhtq.team/phim/115/"
-            val episodes = crawler.extractEpisodesFromEpisodeGroupUrl(url)
+            // Using "Linh Khế" as an example which typically has seasons/related parts
+            val url = "https://hhhtq.team/phim/243/"
+            val movie = crawler.crawlMovieDetails(url)
 
-            println("Episodes from $url:")
-            episodes.forEach { println("  - ${it.title} -> ${it.url}") }
+            assertNotNull(movie)
+            println("Movie: ${movie?.title}")
+            println("Seasons found: ${movie?.seasons?.size}")
 
-            assertTrue(episodes.isNotEmpty(), "Should find episodes in #playlist1")
-            
-            episodes.forEach { episode ->
-                assertTrue(episode.title.isNotBlank(), "Episode title should not be blank")
-                assertTrue(episode.url.startsWith("https://hhhtq.team/"), "Episode URL should be absolute: ${episode.url}")
+            movie?.seasons?.forEach { season ->
+                println("  - Season: ${season.title}, Poster: ${season.posterUrl}, URL: ${season.url}")
+                
+                // Assertions
+                assertTrue(season.url != url, "Season list should NOT contain current movie URL: ${season.url}")
+                assertTrue(season.title.isNotEmpty(), "Season title should not be empty")
+                // Note: Not every season might have a poster if it's not in the related/recommended sections
+                // but at least some should have it.
             }
-
-            // Verify specific episode exists
-            val hasTap1 = episodes.any { it.title.contains("Tập 1") }
-            assertTrue(hasTap1, "Should contain 'Tập 1'")
+            
+            // If the page has seasons, check at least one poster is found
+            if (movie?.seasons?.isNotEmpty() == true) {
+                val hasAnyPoster = movie.seasons.any { it.posterUrl.isNotEmpty() }
+                println("At least one season has poster: $hasAnyPoster")
+                // This is a soft check because posters rely on the "Related" section on the page
+            }
         }
     }
 

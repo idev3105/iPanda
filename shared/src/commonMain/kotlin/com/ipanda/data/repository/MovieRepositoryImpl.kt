@@ -23,8 +23,4 @@ class MovieRepositoryImpl(
     override suspend fun getMovieDetail(url: String): Movie? = withContext(Dispatchers.IO) {
         crawler.crawlMovieDetails(url)
     }
-
-    override suspend fun getEpisodes(groupUrl: String): List<Episode> = withContext(Dispatchers.IO) {
-        crawler.extractEpisodesFromEpisodeGroupUrl(groupUrl)
-    }
 }

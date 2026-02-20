@@ -18,6 +18,8 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import com.ipanda.domain.StreamSource
 import com.ipanda.domain.StreamType
 import com.ipanda.domain.Constants
@@ -143,7 +145,7 @@ fun PlayerScreen(
                 ) {
                     IconButton(onClick = onBack) {
                         Icon(
-                            imageVector = Icons.Default.ArrowBack,
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
                             tint = Color.White
                         )

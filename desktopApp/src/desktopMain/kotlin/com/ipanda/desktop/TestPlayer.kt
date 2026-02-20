@@ -22,6 +22,7 @@ fun main() = application {
             episodeTitle = "Test Episode: Big Buck Bunny",
             isFullScreen = false,
             onToggleFullScreen = { println("Toggle Full Screen") },
+            onOpenWebView = { println("Open WebView: $it") },
             onBack = { println("Back pressed") }
         )
     }

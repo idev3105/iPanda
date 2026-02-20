@@ -11,7 +11,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.input.pointer.pointerInput
 import com.ipanda.domain.Constants
 import com.multiplatform.webview.web.WebView
 import com.multiplatform.webview.web.rememberWebViewState
@@ -65,8 +72,8 @@ fun WebViewScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .androidx.compose.ui.input.pointer.pointerInput(Unit) {
-                androidx.compose.foundation.gestures.detectTapGestures(onTap = { interactionOccurred() })
+            .pointerInput(Unit) {
+                detectTapGestures(onTap = { interactionOccurred() })
             }
     ) {
         Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
@@ -78,10 +85,10 @@ fun WebViewScreen(
             )
 
             // Top bar
-            androidx.compose.animation.AnimatedVisibility(
+            AnimatedVisibility(
                 visible = showControls,
-                enter = androidx.compose.animation.fadeIn() + androidx.compose.animation.slideInVertically(),
-                exit = androidx.compose.animation.fadeOut() + androidx.compose.animation.slideOutVertically(),
+                enter = fadeIn() + slideInVertically(),
+                exit = fadeOut() + slideOutVertically(),
                 modifier = Modifier.align(Alignment.TopStart)
             ) {
                 Surface(
@@ -93,7 +100,7 @@ fun WebViewScreen(
                     ) {
                         IconButton(onClick = onBack) {
                             Icon(
-                                imageVector = Icons.Default.ArrowBack,
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                 contentDescription = "Back",
                                 tint = Color.White
                             )

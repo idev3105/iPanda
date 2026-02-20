@@ -1,11 +1,11 @@
 package com.ipanda.crawler
 
 import com.ipanda.domain.Episode
-import com.ipanda.domain.EpisodeGroup
 import com.ipanda.domain.Movie
 import com.ipanda.domain.MovieCategory
 import com.ipanda.domain.repository.MovieCrawler as IMovieCrawler
 import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.coroutines.*
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
@@ -85,6 +85,9 @@ class MovieCrawler(private val fetcher: PageFetcher = JsoupPageFetcher()) : IMov
 
             val id = extractIdFromUrl(url)
 
+            val playlist = doc.select("#playlist1").first()
+            val episodes = playlist?.let { parseEpisodes(it, url) } ?: emptyList()
+
             Movie(
                 id = id,
                 title = title,
@@ -94,18 +97,13 @@ class MovieCrawler(private val fetcher: PageFetcher = JsoupPageFetcher()) : IMov
                 plot = plot,
                 description = description,
                 viewCount = viewCount,
-                episodeGroups = extractEpisodeGroups(doc, url)
+                episodes = episodes,
+                seasons = extractSeasons(doc, url)
             )
         } catch (e: Exception) {
             logger.error(e) { "Error crawling movie details from $url" }
             null
         }
-    }
-
-    override suspend fun extractEpisodesFromEpisodeGroupUrl(url: String): List<Episode> {
-        val doc = fetcher.fetch(url)
-        val playlist = doc.select("#playlist1").first() ?: return emptyList()
-        return parseEpisodes(playlist, url)
     }
 
     // ── Private Helpers ──────────────────────────────────────────────────
@@ -134,25 +132,37 @@ class MovieCrawler(private val fetcher: PageFetcher = JsoupPageFetcher()) : IMov
         }
     }
 
-    private fun extractEpisodeGroups(doc: Document, baseUrl: String): List<EpisodeGroup> {
-        val groups = mutableListOf<EpisodeGroup>()
+    private suspend fun extractSeasons(doc: Document, baseUrl: String): List<Movie> = coroutineScope {
+        val seasonUrls = doc.select(".list-episode a")
+            .map { it.attr("href") }
+            .map { resolveUrl(baseUrl, it) }
+            .filter { it != baseUrl }
+            .distinct()
 
-        // Default group from current page
-        val defaultTitle = doc.selectFirst(".title")?.text()?.substringBefore("lượt xem")?.trim().orEmpty()
-        if (defaultTitle.isNotEmpty()) {
-            groups.add(EpisodeGroup(title = defaultTitle, episodes = emptyList(), url = baseUrl))
-        }
+        seasonUrls.map { url ->
+            async(Dispatchers.IO) {
+                try {
+                    val sDoc = fetcher.fetch(url)
+                    val title = sDoc.selectFirst("h1.title")
+                        ?.text()?.substringBefore("lượt xem")?.trim().orEmpty()
+                    
+                    val thumb = sDoc.selectFirst(".myui-vodlist__thumb img") ?: sDoc.selectFirst(".myui-content__thumb img")
+                    val posterUrl = thumb?.let {
+                        it.attr("data-original").ifEmpty { it.attr("src") }
+                    }.orEmpty()
 
-        // Seasons / Parts from .list-episode
-        doc.select(".list-episode a:not([class*=active])").forEach { a ->
-            val groupTitle = a.text().trim()
-            val groupUrl = resolveUrl(baseUrl, a.attr("href"))
-            if (groups.none { it.title == groupTitle }) {
-                groups += EpisodeGroup(title = groupTitle, episodes = emptyList(), url = groupUrl)
+                    Movie(
+                        id = extractIdFromUrl(url),
+                        title = title,
+                        url = url,
+                        year = 0,
+                        posterUrl = posterUrl
+                    )
+                } catch (e: Exception) {
+                    null
+                }
             }
-        }
-
-        return groups.distinctBy { it.title + it.url }
+        }.awaitAll().filterNotNull()
     }
 
     private fun parseEpisodes(container: Element, baseUrl: String): List<Episode> =

@@ -95,7 +95,7 @@ fun MovieListScreen(
                 Text(
                     text = "Phim Hot",
                     style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = Color.White.copy(alpha = 0.7f)
                 )
                 Spacer(Modifier.weight(1f))
                 IconButton(onClick = onOpenSettings) {
@@ -164,6 +164,7 @@ fun MovieListScreen(
                                     "❤️ Phim Yêu Thích",
                                     style = MaterialTheme.typography.titleLarge,
                                     fontWeight = FontWeight.Bold,
+                                    color = Color.White,
                                     modifier = Modifier.padding(top = 8.dp, bottom = 16.dp)
                                 )
                             }
@@ -176,6 +177,7 @@ fun MovieListScreen(
                                     "🔥 Phim Hot",
                                     style = MaterialTheme.typography.titleLarge,
                                     fontWeight = FontWeight.Bold,
+                                    color = Color.White,
                                     modifier = Modifier.padding(bottom = 16.dp)
                                 )
                             }
@@ -193,6 +195,7 @@ fun MovieListScreen(
                                     text = category.title,
                                     style = MaterialTheme.typography.titleLarge,
                                     fontWeight = FontWeight.Bold,
+                                    color = Color.White,
                                     modifier = Modifier.padding(bottom = 16.dp)
                                 )
                             }

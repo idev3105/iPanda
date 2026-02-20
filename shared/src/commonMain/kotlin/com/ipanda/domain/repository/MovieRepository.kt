@@ -8,5 +8,4 @@ interface MovieRepository {
     suspend fun getHotMovies(): List<Movie>
     suspend fun getCategorizedHotMovies(): List<MovieCategory>
     suspend fun getMovieDetail(url: String): Movie?
-    suspend fun getEpisodes(groupUrl: String): List<Episode>
 }

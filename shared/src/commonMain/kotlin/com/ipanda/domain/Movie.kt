@@ -12,5 +12,6 @@ data class Movie(
     val plot: String = "",
     val description: String = "",
     val viewCount: String = "",
-    val episodeGroups: List<EpisodeGroup> = emptyList()
+    val episodes: List<Episode> = emptyList(),
+    val seasons: List<Movie> = emptyList()
 )
