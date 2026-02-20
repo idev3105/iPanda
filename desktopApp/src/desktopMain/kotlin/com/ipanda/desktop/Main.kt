@@ -4,6 +4,7 @@ import androidx.compose.animation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.key
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import java.util.prefs.Preferences
@@ -31,8 +32,19 @@ import com.ipanda.domain.repository.FavoriteRepository
 sealed class Screen {
     data object MovieList : Screen()
     data class MovieDetail(val movieUrl: String) : Screen()
-    data class Player(val streamSources: List<StreamSource>, val episodeTitle: String) : Screen()
 }
+
+data class PlayerWindowData(
+    val id: String = java.util.UUID.randomUUID().toString(),
+    val streamSources: List<StreamSource>,
+    val episodeTitle: String
+)
+
+data class WebViewWindowData(
+    val id: String = java.util.UUID.randomUUID().toString(),
+    val url: String,
+    val title: String
+)
 
 // ── Entry Point ─────────────────────────────────────────────────────
 
@@ -56,17 +68,11 @@ fun main() {
     val favoriteRepository = com.ipanda.data.repository.FavoriteRepositoryImpl(database)
 
     application {
+        val openPlayers = remember { mutableStateListOf<PlayerWindowData>() }
+        val openWebViews = remember { mutableStateListOf<WebViewWindowData>() }
+
+        // Main App Window
         val windowState = rememberWindowState(width = 1200.dp, height = 800.dp)
-        var isFullScreen by remember { mutableStateOf(false) }
-
-        LaunchedEffect(isFullScreen) {
-            windowState.placement = if (isFullScreen) {
-                WindowPlacement.Fullscreen
-            } else {
-                WindowPlacement.Floating
-            }
-        }
-
         Window(
             onCloseRequest = ::exitApplication,
             title = "iPanda - Movie Player",
@@ -144,7 +150,6 @@ fun main() {
                 ) { screen ->
                     when (screen) {
                         is Screen.MovieList -> {
-                            isFullScreen = false
                             MovieListScreen(
                                 movieRepository = movieRepository,
                                 favoriteRepository = favoriteRepository,
@@ -155,7 +160,6 @@ fun main() {
                             )
                         }
                         is Screen.MovieDetail -> {
-                            isFullScreen = false
                             MovieDetailScreen(
                                 movieUrl = screen.movieUrl,
                                 movieRepository = movieRepository,
@@ -163,22 +167,67 @@ fun main() {
                                 favoriteRepository = favoriteRepository,
                                 onBack = { currentScreen = Screen.MovieList },
                                 onPlayStream = { streams, title ->
-                                    currentScreen = Screen.Player(streams, title)
+                                    openPlayers.add(PlayerWindowData(streamSources = streams, episodeTitle = title))
                                 }
                             )
                         }
-                        is Screen.Player -> {
-                            PlayerScreen(
-                                streamSources = screen.streamSources,
-                                episodeTitle = screen.episodeTitle,
-                                isFullScreen = isFullScreen,
-                                onToggleFullScreen = { isFullScreen = !isFullScreen },
-                                onBack = { 
-                                    isFullScreen = false
-                                    currentScreen = Screen.MovieList 
-                                }
-                            )
-                        }
+                    }
+                }
+            }
+        }
+
+        // Dedicated Player Windows
+        openPlayers.forEach { player ->
+            key(player.id) {
+                val playerState = rememberWindowState(width = 1280.dp, height = 720.dp)
+                var isPlayerFullScreen by remember { mutableStateOf(true) } // Auto-fullscreen for player
+
+                LaunchedEffect(isPlayerFullScreen) {
+                    playerState.placement = if (isPlayerFullScreen) {
+                        WindowPlacement.Fullscreen
+                    } else {
+                        WindowPlacement.Floating
+                    }
+                }
+
+                Window(
+                    onCloseRequest = { openPlayers.remove(player) },
+                    title = "Playing: ${player.episodeTitle}",
+                    state = playerState
+                ) {
+                    AppTheme {
+                        PlayerScreen(
+                            streamSources = player.streamSources,
+                            episodeTitle = player.episodeTitle,
+                            isFullScreen = isPlayerFullScreen,
+                            onToggleFullScreen = { isPlayerFullScreen = !isPlayerFullScreen },
+                            onOpenWebView = { url ->
+                                openWebViews.add(WebViewWindowData(url = url, title = player.episodeTitle))
+                                openPlayers.remove(player)
+                            },
+                            onBack = { openPlayers.remove(player) }
+                        )
+                    }
+                }
+            }
+        }
+
+        // Dedicated WebView Windows
+        openWebViews.forEach { webView ->
+            key(webView.id) {
+                val webState = rememberWindowState(width = 1280.dp, height = 720.dp)
+                Window(
+                    onCloseRequest = { openWebViews.remove(webView) },
+                    title = "Browser: ${webView.title}",
+                    state = webState
+                ) {
+                    AppTheme {
+                        // Reusing the WebView part from PlayerScreen logic
+                        com.ipanda.desktop.screen.WebViewScreen(
+                            url = webView.url,
+                            title = webView.title,
+                            onBack = { openWebViews.remove(webView) }
+                        )
                     }
                 }
             }

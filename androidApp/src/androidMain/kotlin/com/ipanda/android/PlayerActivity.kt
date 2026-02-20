@@ -1,38 +1,37 @@
-package com.ipanda.android.screen
+package com.ipanda.android
 
+import android.annotation.SuppressLint
+import android.app.Activity
+import android.content.Context
+import android.content.Intent
+import android.content.pm.ActivityInfo
+import android.os.Build
+import android.os.Bundle
+import android.view.View
+import android.view.WindowManager
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
 import androidx.annotation.OptIn
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.material.Button
-import androidx.compose.material.Icon
-import androidx.compose.material.IconButton
-import androidx.compose.material.MaterialTheme
-import androidx.compose.material.Text
+import androidx.compose.foundation.layout.*
+import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Public
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.animation.*
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
@@ -41,16 +40,75 @@ import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.ui.PlayerView
-import com.ipanda.android.WebViewActivity
 import com.ipanda.domain.StreamSource
 import com.ipanda.domain.StreamType
 import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 
 private val logger = KotlinLogging.logger {}
 
 @OptIn(UnstableApi::class)
+class PlayerActivity : ComponentActivity() {
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+
+        val streamsJson = intent.getStringExtra(EXTRA_STREAMS) ?: "[]"
+        val title = intent.getStringExtra(EXTRA_TITLE) ?: ""
+        val streamSources = Json.decodeFromString<List<StreamSource>>(streamsJson)
+
+        // Enable immersive full-screen mode
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        val controller = WindowCompat.getInsetsController(window, window.decorView)
+        controller.hide(WindowInsetsCompat.Type.systemBars())
+        controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            window.attributes.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+        }
+        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+
+        setContent {
+            com.ipanda.android.ui.iPandaTheme {
+                PlayerContent(
+                    streamSources = streamSources,
+                    episodeTitle = title,
+                    onBack = { finish() }
+                )
+            }
+        }
+    }
+
+    override fun onUserLeaveHint() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            try {
+                val params = android.app.PictureInPictureParams.Builder().build()
+                enterPictureInPictureMode(params)
+            } catch (e: Exception) {
+                // Ignore
+            }
+        }
+    }
+
+    companion object {
+        private const val EXTRA_STREAMS = "extra_streams"
+        private const val EXTRA_TITLE = "extra_title"
+
+        fun launch(context: Context, streams: List<StreamSource>, title: String) {
+            val intent = Intent(context, PlayerActivity::class.java).apply {
+                putExtra(EXTRA_STREAMS, Json.encodeToString(streams))
+                putExtra(EXTRA_TITLE, title)
+            }
+            context.startActivity(intent)
+        }
+    }
+}
+
+@OptIn(UnstableApi::class)
 @Composable
-fun PlayerScreen(
+fun PlayerContent(
     streamSources: List<StreamSource>,
     episodeTitle: String,
     onBack: () -> Unit
@@ -58,6 +116,11 @@ fun PlayerScreen(
     val context = LocalContext.current
     var selectedSourceIndex by remember { mutableStateOf(0) }
     var forceWebView by remember { mutableStateOf(false) }
+    var isLoading by remember { mutableStateOf(true) }
+    
+    // Sync with ExoPlayer controller visibility
+    var showControls by remember { mutableStateOf(true) }
+
     val streamSource = streamSources.getOrNull(selectedSourceIndex)
 
     Box(
@@ -96,14 +159,17 @@ fun PlayerScreen(
                             override fun onPlayerError(error: PlaybackException) {
                                 logger.error(error) { "Player error occurred: ${error.message}" }
                                 forceWebView = true
+                                isLoading = false
+                            }
+
+                            override fun onPlaybackStateChanged(playbackState: Int) {
+                                isLoading = playbackState == Player.STATE_BUFFERING || playbackState == Player.STATE_IDLE
                             }
                         })
                     }
             }
 
             LaunchedEffect(streamSource) {
-                logger.info { "Setting up player with stream url: ${streamSource.url}" }
-                logger.info { "Setting up player with headers: ${streamSource.headers}" }
                 if (streamSource.type != StreamType.IFRAME) {
                     val mediaItem = MediaItem.fromUri(streamSource.url)
                     exoPlayer.setMediaItem(mediaItem)
@@ -118,7 +184,6 @@ fun PlayerScreen(
             }
 
             if (streamSource.type == StreamType.IFRAME || forceWebView) {
-                // Launch dedicated WebViewActivity for IFRAME - avoids Compose SurfaceView conflict
                 LaunchedEffect(Unit) {
                     val fallbackUrl = if (forceWebView) {
                         streamSources.find { it.type == StreamType.IFRAME }?.url ?: streamSource.url
@@ -133,24 +198,40 @@ fun PlayerScreen(
                     factory = {
                         PlayerView(context).apply {
                             player = exoPlayer
-                            // Netflix red for progress bar (requires custom theme or view surgery, basic surgery here)
                             setShowFastForwardButton(false)
                             setShowRewindButton(false)
                             setShowNextButton(false)
                             setShowPreviousButton(false)
+                            setControllerVisibilityListener(PlayerView.ControllerVisibilityListener { visibility ->
+                                showControls = visibility == View.VISIBLE
+                            })
                         }
                     },
                     modifier = Modifier.fillMaxSize()
                 )
 
-                // Cinematic Overlays
-                Box(Modifier.fillMaxSize()) {
-                    // Top Bar
+                if (isLoading) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(color = com.ipanda.android.ui.NetflixRed)
+                    }
+                }
+
+                // Top Bar Overlay
+                AnimatedVisibility(
+                    visible = showControls,
+                    enter = fadeIn() + slideInVertically(),
+                    exit = fadeOut() + slideOutVertically(),
+                    modifier = Modifier.align(Alignment.TopStart)
+                ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .background(Brush.verticalGradient(listOf(Color.Black.copy(0.7f), Color.Transparent)))
-                            .padding(top = 40.dp, start = 16.dp, end = 16.dp, bottom = 32.dp),
+                            .statusBarsPadding()
+                            .padding(top = 16.dp, start = 16.dp, end = 16.dp, bottom = 32.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         IconButton(onClick = onBack) {
@@ -161,7 +242,7 @@ fun PlayerScreen(
                             text = episodeTitle,
                             color = Color.White,
                             style = MaterialTheme.typography.h6,
-                            fontWeight = FontWeight.Bold,
+                            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
                             modifier = Modifier.weight(1f)
                         )
                         IconButton(

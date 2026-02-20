@@ -43,10 +43,12 @@ fun PlayerScreen(
     episodeTitle: String,
     isFullScreen: Boolean,
     onToggleFullScreen: () -> Unit,
+    onOpenWebView: (String) -> Unit,
     onBack: () -> Unit
 ) {
     var selectedSourceIndex by remember { mutableStateOf(0) }
     var forceWebView by remember { mutableStateOf(false) }
+    var isLoading by remember { mutableStateOf(true) }
     val currentStreamSource = streamSources.getOrNull(selectedSourceIndex) ?: return
 
     // Auto-hide controls logic
@@ -57,7 +59,7 @@ fun PlayerScreen(
         if (showControls) {
             while (true) {
                 val timeSinceLast = System.currentTimeMillis() - lastInteractedTime
-                val remaining = 3000 - timeSinceLast
+                val remaining = 5000 - timeSinceLast
                 if (remaining <= 0) {
                     showControls = false
                     break
@@ -73,7 +75,7 @@ fun PlayerScreen(
     }
 
 
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Black)
@@ -82,21 +84,69 @@ fun PlayerScreen(
             }
             .onPointerEvent(PointerEventType.Move) { interactionOccurred() }
     ) {
+        // ── Video Player ──
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .pointerInput(Unit) {
+                    detectTapGestures(
+                        onTap = { interactionOccurred() },
+                        onDoubleTap = { onToggleFullScreen() }
+                    )
+                }
+                .onPointerEvent(PointerEventType.Move) { interactionOccurred() }
+        ) {
+            if (currentStreamSource.type == StreamType.IFRAME || forceWebView) {
+                val webViewUrl = if (forceWebView) {
+                    streamSources.find { it.type == StreamType.IFRAME }?.url ?: currentStreamSource.url
+                } else {
+                    currentStreamSource.url
+                }
+                
+                LaunchedEffect(Unit) {
+                    onOpenWebView(webViewUrl)
+                }
+            } else {
+                VlcVideoPlayer(
+                    url = currentStreamSource.url,
+                    headers = currentStreamSource.headers,
+                    onBuffering = { buffering -> isLoading = buffering },
+                    onPlaying = { isLoading = false },
+                    onError = { forceWebView = true },
+                    modifier = Modifier.fillMaxSize()
+                )
+
+                if (isLoading) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                    }
+                }
+            }
+        }
+
         // ── Top bar ──
         AnimatedVisibility(
             visible = showControls || !isFullScreen,
             enter = fadeIn() + slideInVertically(),
-            exit = fadeOut() + slideOutVertically()
+            exit = fadeOut() + slideOutVertically(),
+            modifier = Modifier.align(Alignment.TopStart)
         ) {
             Surface(
-                color = Color.Black.copy(alpha = 0.8f)
+                color = Color.Black.copy(alpha = 0.6f)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    TextButton(onClick = onBack) {
-                        Text("← Quay lại", color = MaterialTheme.colorScheme.primary)
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            imageVector = Icons.Default.ArrowBack,
+                            contentDescription = "Back",
+                            tint = Color.White
+                        )
                     }
                     Spacer(Modifier.width(12.dp))
                     Text(
@@ -132,62 +182,15 @@ fun PlayerScreen(
             }
         }
 
-        // ── Video Player ──
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f) // Take remaining space
-                .pointerInput(Unit) {
-                    detectTapGestures(
-                        onTap = { interactionOccurred() },
-                        onDoubleTap = { onToggleFullScreen() }
-                    )
-                }
-                .onPointerEvent(PointerEventType.Move) { interactionOccurred() }
-        ) {
-            if (currentStreamSource.type == StreamType.IFRAME || forceWebView) {
-                val webViewUrl = if (forceWebView) {
-                    streamSources.find { it.type == StreamType.IFRAME }?.url ?: currentStreamSource.url
-                } else {
-                    currentStreamSource.url
-                }
-                val webViewState = rememberWebViewState(webViewUrl)
-                val navigator = rememberWebViewNavigator()
-                val blockRegex = remember { Regex(Constants.BLOCK_REGEX, RegexOption.IGNORE_CASE) }
-
-                LaunchedEffect(webViewState.lastLoadedUrl) {
-                    webViewState.lastLoadedUrl?.let { url ->
-                        if (blockRegex.containsMatchIn(url)) {
-                            navigator.stopLoading()
-                            logger.info { "Blocked request/navigation by regex: $url" }
-                        }
-                    }
-                }
-
-                WebView(
-                    state = webViewState,
-                    navigator = navigator,
-                    modifier = Modifier.fillMaxSize()
-                )
-            } else {
-                VlcVideoPlayer(
-                    url = currentStreamSource.url,
-                    headers = currentStreamSource.headers,
-                    isPlaying = !forceWebView,
-                    onError = { forceWebView = true },
-                    modifier = Modifier.fillMaxSize()
-                )
-            }
-        }
-
         // ── Controls bar ──
         AnimatedVisibility(
             visible = showControls,
             enter = fadeIn() + slideInVertically(initialOffsetY = { it }),
-            exit = fadeOut() + slideOutVertically(targetOffsetY = { it })
+            exit = fadeOut() + slideOutVertically(targetOffsetY = { it }),
+            modifier = Modifier.align(Alignment.BottomStart)
         ) {
             Surface(
-                color = Color.Black.copy(alpha = 0.9f)
+                color = Color.Black.copy(alpha = 0.6f)
             ) {
                 Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
                     
@@ -241,7 +244,7 @@ fun PlayerScreen(
                             IconButton(
                                 onClick = {
                                     interactionOccurred()
-                                    forceWebView = !forceWebView
+                                    onOpenWebView(currentStreamSource.url)
                                 }
                             ) {
                                 Text(
@@ -276,7 +279,8 @@ fun PlayerScreen(
 fun VlcVideoPlayer(
     url: String,
     headers: Map<String, String> = emptyMap(),
-    isPlaying: Boolean = true,
+    onBuffering: (Boolean) -> Unit,
+    onPlaying: () -> Unit,
     onError: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -311,17 +315,17 @@ fun VlcVideoPlayer(
                 logger.error { "VLC Player error occurred for URL: $url" }
                 onError()
             }
+
+            override fun buffering(mediaPlayer: MediaPlayer?, newCache: Float) {
+                onBuffering(newCache < 100f)
+            }
+
+            override fun playing(mediaPlayer: MediaPlayer?) {
+                onPlaying()
+            }
         })
         
         mediaPlayerComponent.mediaPlayer().media().play(url, *options.toTypedArray())
-    }
-
-    LaunchedEffect(isPlaying) {
-        if (isPlaying) {
-            mediaPlayerComponent.mediaPlayer().controls().play()
-        } else {
-            mediaPlayerComponent.mediaPlayer().controls().pause()
-        }
     }
 
     DisposableEffect(Unit) {

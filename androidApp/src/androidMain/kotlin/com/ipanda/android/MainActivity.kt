@@ -2,6 +2,8 @@ package com.ipanda.android
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.compose.setContent
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -10,7 +12,6 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.ipanda.android.screen.MovieDetailScreen
 import com.ipanda.android.screen.MovieListScreen
-import com.ipanda.android.screen.PlayerScreen
 import com.ipanda.crawler.MovieCrawler
 import com.ipanda.crawler.StreamSniffer
 import com.ipanda.data.repository.MovieRepositoryImpl
@@ -49,7 +50,12 @@ import com.ipanda.android.ui.OnSurfaceMuted
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
+
     override fun onCreate(savedInstanceState: Bundle?) {
+        enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
+            navigationBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
+        )
         super.onCreate(savedInstanceState)
         
         // Initialize KMM cache directory
@@ -76,94 +82,69 @@ class MainActivity : ComponentActivity() {
                 val navController = rememberNavController()
                 var showSettingsDialog by remember { mutableStateOf(false) }
 
-            if (showSettingsDialog) {
-                SettingsDialog(
-                    prefs = prefs,
-                    defaultKey = defaultKey,
-                    defaultEndpoint = defaultEndpoint,
-                    onDismiss = { showSettingsDialog = false },
-                    onSave = { apiKey, endpoint ->
-                        val finalKey = apiKey.takeIf { it.isNotBlank() } ?: defaultKey
-                        val finalEndpoint = endpoint.takeIf { it.isNotBlank() } ?: defaultEndpoint
-                        
-                        prefs.edit()
-                            .putString("BROWSERLESS_KEY", apiKey)
-                            .putString("BROWSERLESS_ENDPOINT", endpoint)
-                            .apply()
-                        
-                        streamSniffer.browserlessApiKey = finalKey
-                        streamSniffer.browserlessEndpoint = finalEndpoint
-                        showSettingsDialog = false
-                    },
-                    onClearCache = {
-                        streamRepository.clearCache()
-                    }
-                )
-            }
-
-            NavHost(navController = navController, startDestination = "movie_list") {
-                composable("movie_list") {
-                    MovieListScreen(
-                        movieRepository = movieRepository,
-                        favoriteRepository = favoriteRepository,
-                        onMovieClick = { url ->
-                            val encodedUrl = URLEncoder.encode(url, StandardCharsets.UTF_8.toString())
-                            navController.navigate("movie_detail/$encodedUrl")
+                if (showSettingsDialog) {
+                    SettingsDialog(
+                        prefs = prefs,
+                        defaultKey = defaultKey,
+                        defaultEndpoint = defaultEndpoint,
+                        onDismiss = { showSettingsDialog = false },
+                        onSave = { apiKey, endpoint ->
+                            val finalKey = apiKey.takeIf { it.isNotBlank() } ?: defaultKey
+                            val finalEndpoint = endpoint.takeIf { it.isNotBlank() } ?: defaultEndpoint
+                            
+                            prefs.edit()
+                                .putString("BROWSERLESS_KEY", apiKey)
+                                .putString("BROWSERLESS_ENDPOINT", endpoint)
+                                .apply()
+                            
+                            streamSniffer.browserlessApiKey = finalKey
+                            streamSniffer.browserlessEndpoint = finalEndpoint
+                            showSettingsDialog = false
                         },
-                        onOpenSettings = { showSettingsDialog = true }
-                    )
-                }
-                
-                composable(
-                    "movie_detail/{movieUrl}",
-                    arguments = listOf(navArgument("movieUrl") { type = NavType.StringType })
-                ) { backStackEntry ->
-                    val movieUrl = backStackEntry.arguments?.getString("movieUrl")?.let { 
-                        URLDecoder.decode(it, StandardCharsets.UTF_8.toString())
-                    } ?: ""
-                    
-                    MovieDetailScreen(
-                        movieUrl = movieUrl,
-                        movieRepository = movieRepository,
-                        streamRepository = streamRepository,
-                        favoriteRepository = favoriteRepository,
-                        onBack = { navController.popBackStack() },
-                        onPlayClick = { streams, title ->
-                            val streamsJson = Json.encodeToString(streams)
-                            val encodedStreams = URLEncoder.encode(streamsJson, StandardCharsets.UTF_8.toString())
-                            val encodedTitle = URLEncoder.encode(title, StandardCharsets.UTF_8.toString())
-                            navController.navigate("player/$encodedStreams/$encodedTitle")
+                        onClearCache = {
+                            streamRepository.clearCache()
                         }
                     )
                 }
 
-                composable(
-                    "player/{streamsJson}/{title}",
-                    arguments = listOf(
-                        navArgument("streamsJson") { type = NavType.StringType },
-                        navArgument("title") { type = NavType.StringType }
-                    )
-                ) { backStackEntry ->
-                    val streamsJson = backStackEntry.arguments?.getString("streamsJson")?.let {
-                        URLDecoder.decode(it, StandardCharsets.UTF_8.toString())
-                    } ?: "[]"
-                    val title = backStackEntry.arguments?.getString("title")?.let {
-                        URLDecoder.decode(it, StandardCharsets.UTF_8.toString())
-                    } ?: ""
+                NavHost(navController = navController, startDestination = "movie_list") {
+                    composable("movie_list") {
+                        MovieListScreen(
+                            movieRepository = movieRepository,
+                            favoriteRepository = favoriteRepository,
+                            onMovieClick = { url ->
+                                val encodedUrl = URLEncoder.encode(url, StandardCharsets.UTF_8.toString())
+                                navController.navigate("movie_detail/$encodedUrl")
+                            },
+                            onOpenSettings = { showSettingsDialog = true }
+                        )
+                    }
                     
-                    val streams = Json.decodeFromString<List<StreamSource>>(streamsJson)
-
-                    PlayerScreen(
-                        streamSources = streams,
-                        episodeTitle = title,
-                        onBack = { navController.popBackStack() }
-                    )
+                    composable(
+                        "movie_detail/{movieUrl}",
+                        arguments = listOf(navArgument("movieUrl") { type = NavType.StringType })
+                    ) { backStackEntry ->
+                        val movieUrl = backStackEntry.arguments?.getString("movieUrl")?.let { 
+                            URLDecoder.decode(it, StandardCharsets.UTF_8.toString())
+                        } ?: ""
+                        
+                        MovieDetailScreen(
+                            movieUrl = movieUrl,
+                            movieRepository = movieRepository,
+                            streamRepository = streamRepository,
+                            favoriteRepository = favoriteRepository,
+                            onBack = { navController.popBackStack() },
+                            onPlayClick = { streams, title ->
+                                PlayerActivity.launch(this@MainActivity, streams, title)
+                            }
+                        )
+                    }
                 }
-            }
             }
         }
     }
 }
+
 @Composable
 fun SettingsDialog(
     prefs: android.content.SharedPreferences,

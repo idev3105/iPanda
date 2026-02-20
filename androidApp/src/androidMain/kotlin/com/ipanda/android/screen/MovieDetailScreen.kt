@@ -14,8 +14,10 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -271,6 +273,9 @@ fun MovieDetailScreen(
                                 }
                             )
                         }
+                        
+                        Spacer(modifier = Modifier.navigationBarsPadding())
+                        Spacer(modifier = Modifier.height(16.dp))
                     }
                 }
             }
@@ -280,7 +285,8 @@ fun MovieDetailScreen(
         IconButton(
             onClick = onBack,
             modifier = Modifier
-                .padding(top = 40.dp, start = 16.dp)
+                .statusBarsPadding()
+                .padding(top = 8.dp, start = 16.dp)
                 .background(Color.Black.copy(alpha = 0.5f), CircleShape)
         ) {
             Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color.White)
