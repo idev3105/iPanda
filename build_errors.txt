@@ -1,0 +1,216 @@
+Initialized native services in: /Users/idev/.gradle/native
+Initialized jansi services in: /Users/idev/.gradle/native
+Found daemon DaemonInfo{pid=70923, address=[122a19c8-13df-450b-81c5-9ff1d1bcd3d5 port:56644, addresses:[/127.0.0.1]], state=Idle, lastBusy=1771514878364, context=DefaultDaemonContext[uid=dc58746b-3d4f-40b9-a110-e6414d176a9e,javaHome=/Users/idev/.antigravity/extensions/redhat.java-1.52.0-darwin-arm64/jre/21.0.9-macosx-aarch64,javaVersion=21,javaVendor=Eclipse Adoptium,daemonRegistryDir=/Users/idev/.gradle/daemon,pid=70923,idleTimeout=10800000,priority=NORMAL,applyInstrumentationAgent=true,nativeServicesMode=ENABLED,daemonOpts=-Xmx2048m,-Dfile.encoding=UTF-8,-Duser.country=VN,-Duser.language=en,-Duser.variant]} however its context does not match the desired criteria.
+JVM is incompatible.
+Wanted: DaemonRequestContext{jvmCriteria=/Users/idev/.asdf/installs/java/adoptopenjdk-21.0.9+10.0.LTS (no JDK specified, using current Java home), daemonOpts=[-Xmx2048m, -Dfile.encoding=UTF-8, -Duser.country=VN, -Duser.language=en, -Duser.variant], applyInstrumentationAgent=true, nativeServicesMode=ENABLED, priority=NORMAL}
+Actual: DefaultDaemonContext[uid=dc58746b-3d4f-40b9-a110-e6414d176a9e,javaHome=/Users/idev/.antigravity/extensions/redhat.java-1.52.0-darwin-arm64/jre/21.0.9-macosx-aarch64,javaVersion=21,javaVendor=Eclipse Adoptium,daemonRegistryDir=/Users/idev/.gradle/daemon,pid=70923,idleTimeout=10800000,priority=NORMAL,applyInstrumentationAgent=true,nativeServicesMode=ENABLED,daemonOpts=-Xmx2048m,-Dfile.encoding=UTF-8,-Duser.country=VN,-Duser.language=en,-Duser.variant]
+
+  Looking for a different daemon...
+Found daemon DaemonInfo{pid=83591, address=[9b70ed14-1280-4a23-924c-7bfb2fa5e487 port:53532, addresses:[/127.0.0.1]], state=Idle, lastBusy=1771516905743, context=DefaultDaemonContext[uid=5d01609e-b3fd-4bd0-9ce9-4d75dc2050f5,javaHome=/Applications/Android Studio.app/Contents/jbr/Contents/Home,javaVersion=21,javaVendor=JetBrains s.r.o.,daemonRegistryDir=/Users/idev/.gradle/daemon,pid=83591,idleTimeout=10800000,priority=NORMAL,applyInstrumentationAgent=true,nativeServicesMode=ENABLED,daemonOpts=-Xmx2048m,-Dfile.encoding=UTF-8,-Duser.country=VN,-Duser.language=en,-Duser.variant]} however its context does not match the desired criteria.
+JVM is incompatible.
+Wanted: DaemonRequestContext{jvmCriteria=/Users/idev/.asdf/installs/java/adoptopenjdk-21.0.9+10.0.LTS (no JDK specified, using current Java home), daemonOpts=[-Xmx2048m, -Dfile.encoding=UTF-8, -Duser.country=VN, -Duser.language=en, -Duser.variant], applyInstrumentationAgent=true, nativeServicesMode=ENABLED, priority=NORMAL}
+Actual: DefaultDaemonContext[uid=5d01609e-b3fd-4bd0-9ce9-4d75dc2050f5,javaHome=/Applications/Android Studio.app/Contents/jbr/Contents/Home,javaVersion=21,javaVendor=JetBrains s.r.o.,daemonRegistryDir=/Users/idev/.gradle/daemon,pid=83591,idleTimeout=10800000,priority=NORMAL,applyInstrumentationAgent=true,nativeServicesMode=ENABLED,daemonOpts=-Xmx2048m,-Dfile.encoding=UTF-8,-Duser.country=VN,-Duser.language=en,-Duser.variant]
+
+  Looking for a different daemon...
+The client will now receive all logging from the daemon (pid: 76755). The daemon log file: /Users/idev/.gradle/daemon/8.13/daemon-76755.out.log
+Starting 31st build in daemon [uptime: 1 hrs 16 mins 47.111 secs, performance: 100%, GC rate: 0.00/s, heap usage: 0% of 2 GiB]
+Using 10 worker leases.
+Now considering [/Users/idev/Documents/projects/iPanda] as hierarchies to watch
+Watching the file system is configured to be enabled if available
+File system watching is active
+Starting Build
+Resolved plugin [id: 'org.gradle.toolchains.foojay-resolver-convention', version: '0.5.0']
+Settings evaluated using settings file '/Users/idev/Documents/projects/iPanda/settings.gradle.kts'.
+Projects loaded. Root project using build file '/Users/idev/Documents/projects/iPanda/build.gradle.kts'.
+Included projects: [root project 'iPanda', project ':androidApp', project ':desktopApp', project ':movie-crawler', project ':shared']
+
+> Configure project :
+Evaluating root project 'iPanda' using build file '/Users/idev/Documents/projects/iPanda/build.gradle.kts'.
+Resolved plugin [id: 'org.jetbrains.kotlin.multiplatform', version: '2.1.0', apply: false]
+Resolved plugin [id: 'org.jetbrains.kotlin.jvm', version: '2.1.0', apply: false]
+Resolved plugin [id: 'com.android.application', version: '8.13.2', apply: false]
+Resolved plugin [id: 'com.android.library', version: '8.13.2', apply: false]
+Resolved plugin [id: 'org.jetbrains.compose', version: '1.7.0', apply: false]
+Resolved plugin [id: 'org.jetbrains.kotlin.plugin.compose', version: '2.1.0', apply: false]
+Resolved plugin [id: 'org.jetbrains.kotlin.plugin.serialization', version: '2.1.0', apply: false]
+Resolved plugin [id: 'com.github.gmazzo.buildconfig', version: '5.5.0', apply: false]
+
+> Configure project :androidApp
+Evaluating project ':androidApp' using build file '/Users/idev/Documents/projects/iPanda/androidApp/build.gradle.kts'.
+Resolved plugin [id: 'com.android.application', version: '8.13.2']
+Resolved plugin [id: 'org.jetbrains.kotlin.multiplatform', version: '2.1.0']
+Resolved plugin [id: 'org.jetbrains.compose', version: '1.7.0']
+Resolved plugin [id: 'org.jetbrains.kotlin.plugin.compose', version: '2.1.0']
+Resolved plugin [id: 'org.jetbrains.kotlin.plugin.serialization', version: '2.1.0']
+Resolved plugin [id: 'com.github.gmazzo.buildconfig', version: '5.5.0']
+Using default execution profile
+Using Kotlin Gradle Plugin gradle85 variant
+Configure multi-module compose resources
+Configure compose resources generation
+Configure Res class generation for commonMain
+Configure resource accessors generation for commonMain
+Configure resource accessors generation for commonTest
+Configure expect resource collectors generation for commonMain
+Configure resource accessors generation for androidInstrumentedTest
+Configure resource accessors generation for androidMain
+Configure resource accessors generation for androidUnitTest
+Configure actual resource collectors generation for androidMain
+Configure debug resources for 'android' target
+Configure debugAndroidTest resources for 'android' target
+Configure release resources for 'android' target
+Configure resource accessors generation for androidInstrumentedTestDebug
+Configure resource accessors generation for androidUnitTestDebug
+Configure resource accessors generation for androidDebug
+Configure resource accessors generation for androidUnitTestRelease
+Configure resource accessors generation for androidRelease
+Detected Android Gradle Plugin compose compiler configuration
+Check that new 'org.jetbrains.kotlin.plugin.compose' was applied
+Detected Android Gradle Plugin compose compiler configuration
+Detected Android Gradle Plugin compose compiler configuration
+Detected Android Gradle Plugin compose compiler configuration
+Detected Android Gradle Plugin compose compiler configuration
+Detected Android Gradle Plugin compose compiler configuration
+
+> Configure project :desktopApp
+Evaluating project ':desktopApp' using build file '/Users/idev/Documents/projects/iPanda/desktopApp/build.gradle.kts'.
+Resolved plugin [id: 'org.jetbrains.kotlin.multiplatform', version: '2.1.0']
+Resolved plugin [id: 'org.jetbrains.compose', version: '1.7.0']
+Resolved plugin [id: 'org.jetbrains.kotlin.plugin.compose', version: '2.1.0']
+Resolved plugin [id: 'com.github.gmazzo.buildconfig', version: '5.5.0']
+Using Kotlin Gradle Plugin gradle85 variant
+Configure multi-module compose resources
+Configure compose resources generation
+Configure Res class generation for commonMain
+Configure resource accessors generation for commonMain
+Configure resource accessors generation for commonTest
+Configure expect resource collectors generation for commonMain
+Configure resource accessors generation for desktopMain
+kotlin scripting plugin: created the scripting discovery configuration: kotlinScriptDef
+Configure resource accessors generation for desktopTest
+kotlin scripting plugin: created the scripting discovery configuration: testKotlinScriptDef
+Configure actual resource collectors generation for desktopMain
+Configure main resources for 'desktop' target
+Configure test resources for 'desktop' target
+Check that new 'org.jetbrains.kotlin.plugin.compose' was applied
+
+> Configure project :movie-crawler
+Evaluating project ':movie-crawler' using build file '/Users/idev/Documents/projects/iPanda/movie-crawler/build.gradle.kts'.
+Resolved plugin [id: 'org.jetbrains.kotlin.jvm', version: '2.1.0']
+Resolved plugin [id: 'org.jetbrains.kotlin.plugin.serialization', version: '2.1.0']
+Using Kotlin Gradle Plugin gradle85 variant
+kotlin scripting plugin: created the scripting discovery configuration: kotlinScriptDef
+kotlin scripting plugin: created the scripting discovery configuration: testKotlinScriptDef
+
+> Configure project :shared
+Evaluating project ':shared' using build file '/Users/idev/Documents/projects/iPanda/shared/build.gradle.kts'.
+Resolved plugin [id: 'org.jetbrains.kotlin.multiplatform', version: '2.1.0']
+Resolved plugin [id: 'com.android.library', version: '8.13.2']
+Resolved plugin [id: 'org.jetbrains.kotlin.plugin.serialization', version: '2.1.0']
+Using Kotlin Gradle Plugin gradle85 variant
+Using default execution profile
+kotlin scripting plugin: created the scripting discovery configuration: kotlinScriptDef
+kotlin scripting plugin: created the scripting discovery configuration: testKotlinScriptDef
+All projects evaluated.
+Task path ':movie-crawler:compileKotlin' matched project ':movie-crawler'
+Task name matched 'compileKotlin'
+Selected primary task 'compileKotlin' from project :movie-crawler
+Starting process 'command '/usr/libexec/java_home''. Working directory: /Users/idev/.gradle/daemon/8.13 Command: /usr/libexec/java_home -V
+Successfully started process 'command '/usr/libexec/java_home''
+Tasks to be executed: [task ':movie-crawler:checkKotlinGradlePluginConfigurationErrors', task ':shared:checkKotlinGradlePluginConfigurationErrors', task ':shared:compileKotlinJvm', task ':shared:jvmProcessResources', task ':shared:jvmMainClasses', task ':shared:jvmJar', task ':movie-crawler:compileKotlin']
+Tasks that were excluded: []
+Resolve mutations for :movie-crawler:checkKotlinGradlePluginConfigurationErrors (Thread[#2436,Execution worker,5,main]) started.
+:movie-crawler:checkKotlinGradlePluginConfigurationErrors (Thread[#2436,Execution worker,5,main]) started.
+
+> Task :movie-crawler:checkKotlinGradlePluginConfigurationErrors SKIPPED
+Skipping task ':movie-crawler:checkKotlinGradlePluginConfigurationErrors' as task onlyIf 'errorDiagnostics are present' is false.
+Resolve mutations for :shared:checkKotlinGradlePluginConfigurationErrors (Thread[#2443,Execution worker Thread 8,5,main]) started.
+:shared:checkKotlinGradlePluginConfigurationErrors (Thread[#2443,Execution worker Thread 8,5,main]) started.
+
+> Task :shared:checkKotlinGradlePluginConfigurationErrors SKIPPED
+Skipping task ':shared:checkKotlinGradlePluginConfigurationErrors' as task onlyIf 'errorDiagnostics are present' is false.
+Resolve mutations for :shared:compileKotlinJvm (Thread[#2442,Execution worker Thread 7,5,main]) started.
+:shared:compileKotlinJvm (Thread[#2442,Execution worker Thread 7,5,main]) started.
+
+> Task :shared:compileKotlinJvm UP-TO-DATE
+Caching disabled for task ':shared:compileKotlinJvm' because:
+  Build cache is disabled
+Skipping task ':shared:compileKotlinJvm' as it is up-to-date.
+Resolve mutations for :shared:jvmProcessResources (Thread[#2442,Execution worker Thread 7,5,main]) started.
+:shared:jvmProcessResources (Thread[#2442,Execution worker Thread 7,5,main]) started.
+
+> Task :shared:jvmProcessResources NO-SOURCE
+Skipping task ':shared:jvmProcessResources' as it has no source files and no previous output files.
+Resolve mutations for :shared:jvmMainClasses (Thread[#2442,Execution worker Thread 7,5,main]) started.
+:shared:jvmMainClasses (Thread[#2442,Execution worker Thread 7,5,main]) started.
+
+> Task :shared:jvmMainClasses UP-TO-DATE
+Skipping task ':shared:jvmMainClasses' as it has no actions.
+Resolve mutations for :shared:jvmJar (Thread[#2439,Execution worker Thread 4,5,main]) started.
+:shared:jvmJar (Thread[#2439,Execution worker Thread 4,5,main]) started.
+
+> Task :shared:jvmJar UP-TO-DATE
+Caching disabled for task ':shared:jvmJar' because:
+  Build cache is disabled
+  Not worth caching
+Skipping task ':shared:jvmJar' as it is up-to-date.
+work action resolve shared-jvm.jar (project :shared) (Thread[#2439,Execution worker Thread 4,5,main]) started.
+Resolve mutations for :movie-crawler:compileKotlin (Thread[#2439,Execution worker Thread 4,5,main]) started.
+:movie-crawler:compileKotlin (Thread[#2439,Execution worker Thread 4,5,main]) started.
+
+> Task :movie-crawler:compileKotlin FAILED
+Caching disabled for task ':movie-crawler:compileKotlin' because:
+  Build cache is disabled
+Task ':movie-crawler:compileKotlin' is not up-to-date because:
+  Input property 'classpathSnapshotProperties.classpathSnapshot' file /Users/idev/.gradle/caches/8.13/transforms/fe3f06405649054122b71f663d3217bb/transformed/shared-jvm_jar-snapshot.bin has been removed.
+  Input property 'classpathSnapshotProperties.classpathSnapshot' file /Users/idev/.gradle/caches/8.13/transforms/ba6b1b878a153372df66d2ec0f1af3bf/transformed/shared-jvm_jar-snapshot.bin has been added.
+  Input property 'sources' file /Users/idev/Documents/projects/iPanda/movie-crawler/src/main/java/com/ipanda/crawler/MovieCrawler.kt has changed.
+  and more...
+file or directory '/Users/idev/Documents/projects/iPanda/movie-crawler/src/main/kotlin', not found
+file or directory '/Users/idev/Documents/projects/iPanda/movie-crawler/src/main/kotlin', not found
+file or directory '/Users/idev/Documents/projects/iPanda/movie-crawler/src/main/kotlin', not found
+file or directory '/Users/idev/Documents/projects/iPanda/movie-crawler/src/main/kotlin', not found
+Kotlin source files: /Users/idev/Documents/projects/iPanda/movie-crawler/src/main/java/com/ipanda/crawler/MovieCrawler.kt, /Users/idev/Documents/projects/iPanda/movie-crawler/src/main/java/com/ipanda/crawler/StreamSniffer.kt
+Java source files: 
+Script source files: 
+Script file extensions: 
+Using Kotlin/JVM incremental compilation
+[KOTLIN] Kotlin compilation 'jdkHome' argument: /Users/idev/.gradle/jdks/eclipse_adoptium-11-aarch64-os_x.2/jdk-11.0.30+7/Contents/Home
+Options for KOTLIN DAEMON: IncrementalCompilationOptions(super=CompilationOptions(compilerMode=INCREMENTAL_COMPILER, targetPlatform=JVM, reportCategories=[0, 3], reportSeverity=2, requestedCompilationResults=[0], kotlinScriptExtensions=[]), areFileChangesKnown=true, modifiedFiles=[/Users/idev/Documents/projects/iPanda/movie-crawler/src/main/java/com/ipanda/crawler/MovieCrawler.kt, /Users/idev/Documents/projects/iPanda/movie-crawler/src/main/java/com/ipanda/crawler/StreamSniffer.kt, /Users/idev/.gradle/caches/8.13/transforms/ba6b1b878a153372df66d2ec0f1af3bf/transformed/shared-jvm_jar-snapshot.bin], deletedFiles=[/Users/idev/Documents/projects/iPanda/movie-crawler/src/main/java/com/ipanda/crawler/model/Episode.kt, /Users/idev/Documents/projects/iPanda/movie-crawler/src/main/java/com/ipanda/crawler/model/EpisodeGroup.kt, /Users/idev/Documents/projects/iPanda/movie-crawler/src/main/java/com/ipanda/crawler/model/Movie.kt, /Users/idev/Documents/projects/iPanda/movie-crawler/src/main/java/com/ipanda/crawler/model/StreamSource.kt, /Users/idev/Documents/projects/iPanda/movie-crawler/src/main/java/com/ipanda/crawler/repository/MovieRepositoryImpl.kt, /Users/idev/Documents/projects/iPanda/movie-crawler/src/main/java/com/ipanda/crawler/repository/StreamRepositoryImpl.kt, /Users/idev/.gradle/caches/8.13/transforms/fe3f06405649054122b71f663d3217bb/transformed/shared-jvm_jar-snapshot.bin], classpathChanges=ToBeComputedByIncrementalCompiler, workingDir=/Users/idev/Documents/projects/iPanda/movie-crawler/build/kotlin/compileKotlin/cacheable, multiModuleICSettings=MultiModuleICSettings(buildHistoryFile=/Users/idev/Documents/projects/iPanda/movie-crawler/build/kotlin/compileKotlin/local-state/build-history.bin, useModuleDetection=false), usePreciseJavaTracking=true, icFeatures=IncrementalCompilationFeatures(withAbiSnapshot=false, preciseCompilationResultsBackup=true, keepIncrementalCompilationCachesInMemory=true, enableUnsafeIncrementalCompilationForMultiplatform=false), outputFiles=[/Users/idev/Documents/projects/iPanda/movie-crawler/build/classes/kotlin/main, /Users/idev/Documents/projects/iPanda/movie-crawler/build/kotlin/compileKotlin/cacheable, /Users/idev/Documents/projects/iPanda/movie-crawler/build/kotlin/compileKotlin/local-state])
+e: file:///Users/idev/Documents/projects/iPanda/movie-crawler/src/main/java/com/ipanda/crawler/MovieCrawler.kt:23:1 Class 'MovieCrawler' is not abstract and does not implement abstract member 'crawlHotMovies'.
+e: file:///Users/idev/Documents/projects/iPanda/movie-crawler/src/main/java/com/ipanda/crawler/MovieCrawler.kt:31:5 Conflicting overloads:
+fun crawlHotMovies(): List<Movie>
+suspend fun crawlHotMovies(): List<Movie>
+e: file:///Users/idev/Documents/projects/iPanda/movie-crawler/src/main/java/com/ipanda/crawler/MovieCrawler.kt:40:5 Conflicting overloads:
+fun crawlMovieDetails(url: String): Movie?
+suspend fun crawlMovieDetails(url: String): Movie?
+e: file:///Users/idev/Documents/projects/iPanda/movie-crawler/src/main/java/com/ipanda/crawler/MovieCrawler.kt:89:5 Conflicting overloads:
+fun extractEpisodesFromEpisodeGroupUrl(url: String): List<Episode>
+suspend fun extractEpisodesFromEpisodeGroupUrl(url: String): List<Episode>
+e: file:///Users/idev/Documents/projects/iPanda/movie-crawler/src/main/java/com/ipanda/crawler/StreamSniffer.kt:148:17 'sniffStreamViaIframe' hides member of supertype 'StreamSniffer' and needs an 'override' modifier.
+Finished executing kotlin compiler using DAEMON strategy
+Restoring task outputs to pre-compilation state
+
+[Incubating] Problems report is available at: file:///Users/idev/Documents/projects/iPanda/build/reports/problems/problems-report.html
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':movie-crawler:compileKotlin'.
+> A failure occurred while executing org.jetbrains.kotlin.compilerRunner.GradleCompilerRunnerWithWorkers$GradleKotlinCompilerWorkAction
+   > Compilation error. See log for more details
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 9.0.
+
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+
+For more on this, please refer to https://docs.gradle.org/8.13/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+
+BUILD FAILED in 1s
+3 actionable tasks: 1 executed, 2 up-to-date
+Watched directory hierarchies: [/Users/idev/Documents/projects/iPanda]

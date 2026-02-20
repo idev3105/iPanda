@@ -1,0 +1,310 @@
+package com.ipanda.desktop.screen
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.animation.*
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.onPointerEvent
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import com.ipanda.domain.StreamSource
+import com.ipanda.domain.StreamType
+import java.util.Locale
+import io.github.oshai.kotlinlogging.KotlinLogging
+import uk.co.caprica.vlcj.factory.discovery.NativeDiscovery
+import uk.co.caprica.vlcj.player.component.EmbeddedMediaPlayerComponent
+import com.multiplatform.webview.web.WebView
+import com.multiplatform.webview.web.rememberWebViewState
+import androidx.compose.ui.awt.SwingPanel
+import java.awt.Component
+import java.awt.Color as AwtColor
+
+private val logger = KotlinLogging.logger {}
+
+@OptIn(ExperimentalComposeUiApi::class)
+@Composable
+fun PlayerScreen(
+    streamSources: List<StreamSource>,
+    episodeTitle: String,
+    isFullScreen: Boolean,
+    onToggleFullScreen: () -> Unit,
+    onBack: () -> Unit
+) {
+    var selectedSourceIndex by remember { mutableStateOf(0) }
+    var forceWebView by remember { mutableStateOf(false) }
+    val currentStreamSource = streamSources.getOrNull(selectedSourceIndex) ?: return
+
+    // Auto-hide controls logic
+    var showControls by remember { mutableStateOf(true) }
+    var lastInteractedTime by remember { mutableStateOf(System.currentTimeMillis()) }
+
+    LaunchedEffect(showControls) {
+        if (showControls) {
+            while (true) {
+                val timeSinceLast = System.currentTimeMillis() - lastInteractedTime
+                val remaining = 3000 - timeSinceLast
+                if (remaining <= 0) {
+                    showControls = false
+                    break
+                }
+                kotlinx.coroutines.delay(remaining)
+            }
+        }
+    }
+
+    fun interactionOccurred() {
+        showControls = true
+        lastInteractedTime = System.currentTimeMillis()
+    }
+
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black)
+            .pointerInput(Unit) {
+                detectTapGestures(onTap = { interactionOccurred() })
+            }
+            .onPointerEvent(PointerEventType.Move) { interactionOccurred() }
+    ) {
+        // ── Top bar ──
+        AnimatedVisibility(
+            visible = showControls || !isFullScreen,
+            enter = fadeIn() + slideInVertically(),
+            exit = fadeOut() + slideOutVertically()
+        ) {
+            Surface(
+                color = Color.Black.copy(alpha = 0.8f)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    TextButton(onClick = onBack) {
+                        Text("← Quay lại", color = MaterialTheme.colorScheme.primary)
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Text(
+                        text = episodeTitle,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Spacer(Modifier.width(12.dp))
+
+                    // Stream type badge
+                    Surface(
+                        color = when (currentStreamSource.type) {
+                            StreamType.HLS -> Color(0xFF4CAF50)
+                            StreamType.DASH -> Color(0xFF2196F3)
+                            StreamType.MP4 -> Color(0xFFFF9800)
+                            StreamType.IFRAME -> Color(0xFF9C27B0)
+                        },
+                        shape = RoundedCornerShape(4.dp)
+                    ) {
+                        Text(
+                            text = currentStreamSource.type.name,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+        }
+
+        // ── Video Player ──
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f) // Take remaining space
+                .pointerInput(Unit) {
+                    detectTapGestures(
+                        onTap = { interactionOccurred() },
+                        onDoubleTap = { onToggleFullScreen() }
+                    )
+                }
+                .onPointerEvent(PointerEventType.Move) { interactionOccurred() }
+        ) {
+            if (currentStreamSource.type == StreamType.IFRAME || forceWebView) {
+                val webViewState = rememberWebViewState(currentStreamSource.url)
+                WebView(
+                    state = webViewState,
+                    modifier = Modifier.fillMaxSize()
+                )
+            } else {
+                VlcVideoPlayer(
+                    url = currentStreamSource.url,
+                    headers = currentStreamSource.headers,
+                    isPlaying = !forceWebView,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+        }
+
+        // ── Controls bar ──
+        AnimatedVisibility(
+            visible = showControls,
+            enter = fadeIn() + slideInVertically(initialOffsetY = { it }),
+            exit = fadeOut() + slideOutVertically(targetOffsetY = { it })
+        ) {
+            Surface(
+                color = Color.Black.copy(alpha = 0.9f)
+            ) {
+                Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
+                    
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // Source selector
+                            var showSourceMenu by remember { mutableStateOf(false) }
+                            Box {
+                                TextButton(
+                                    onClick = { 
+                                        interactionOccurred()
+                                        showSourceMenu = true 
+                                    },
+                                    colors = ButtonDefaults.textButtonColors(contentColor = Color.White)
+                                ) {
+                                    Text("Nguồn ${selectedSourceIndex + 1}")
+                                }
+                                DropdownMenu(
+                                    expanded = showSourceMenu,
+                                    onDismissRequest = { showSourceMenu = false },
+                                    modifier = Modifier.background(MaterialTheme.colorScheme.surface)
+                                ) {
+                                    streamSources.forEachIndexed { index, source ->
+                                        DropdownMenuItem(
+                                            text = { 
+                                                Text(
+                                                    "Nguồn ${index + 1} (${source.type.name})",
+                                                    fontWeight = if (index == selectedSourceIndex) FontWeight.Bold else FontWeight.Normal
+                                                ) 
+                                            },
+                                            onClick = {
+                                                selectedSourceIndex = index
+                                                forceWebView = false
+                                                showSourceMenu = false
+                                                interactionOccurred()
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+
+                            // Open in browser button
+                            IconButton(
+                                onClick = {
+                                    interactionOccurred()
+                                    forceWebView = !forceWebView
+                                }
+                            ) {
+                                Text(
+                                    text = "🌐",
+                                    color = Color.White,
+                                    style = MaterialTheme.typography.titleMedium
+                                )
+                            }
+
+                            // Full screen button
+                            IconButton(
+                                onClick = {
+                                    interactionOccurred()
+                                    onToggleFullScreen()
+                                }
+                            ) {
+                                Text(
+                                    text = if (isFullScreen) "❐" else "⛶",
+                                    color = Color.White,
+                                    style = MaterialTheme.typography.titleLarge
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun VlcVideoPlayer(
+    url: String,
+    headers: Map<String, String> = emptyMap(),
+    isPlaying: Boolean = true,
+    modifier: Modifier = Modifier
+) {
+    val mediaPlayerComponent = remember {
+        NativeDiscovery().discover()
+        EmbeddedMediaPlayerComponent()
+    }
+
+    LaunchedEffect(url, headers) {
+        // Wait for Native Window initialization bounds (helps prevent empty video frames on MacOS)
+        kotlinx.coroutines.delay(500)
+
+        // Optimized for HLS and generic streaming
+        val options = mutableListOf(
+            "--network-caching=3000",
+            "--hls-live-edge=3",
+            "--clock-jitter=0",
+            "--clock-synchro=0",
+            "--avcodec-hw=none" // Fixes hardware acceleration black screen issues on macOS
+        )
+        
+        headers.forEach { (key, value) ->
+            if (key.equals("referer", ignoreCase = true)) {
+                options.add(":http-referrer=$value")
+            } else if (key.equals("user-agent", ignoreCase = true)) {
+                options.add(":http-user-agent=$value")
+            }
+        }
+        
+        mediaPlayerComponent.mediaPlayer().media().play(url, *options.toTypedArray())
+    }
+
+    LaunchedEffect(isPlaying) {
+        if (isPlaying) {
+            mediaPlayerComponent.mediaPlayer().controls().play()
+        } else {
+            mediaPlayerComponent.mediaPlayer().controls().pause()
+        }
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            mediaPlayerComponent.mediaPlayer().release()
+        }
+    }
+
+    SwingPanel(
+        factory = {
+            mediaPlayerComponent.apply {
+                background = AwtColor.BLACK
+            }
+        },
+        modifier = modifier
+    )
+}

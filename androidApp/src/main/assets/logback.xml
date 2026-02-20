@@ -1,0 +1,19 @@
+<configuration>
+    <!-- Use LogcatAppender to log to Logcat -->
+    <appender name="LOGCAT" class="ch.qos.logback.classic.android.LogcatAppender">
+        <tagEncoder>
+            <pattern>%logger{12}</pattern>
+        </tagEncoder>
+        <encoder>
+            <pattern>[%thread] %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Configure logger for movie_crawler module -->
+    <logger name="com.ipanda.crawler" level="DEBUG" />
+
+    <!-- Root logger configuration -->
+    <root level="INFO">
+        <appender-ref ref="LOGCAT" />
+    </root>
+</configuration>
