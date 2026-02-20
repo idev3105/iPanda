@@ -7,9 +7,13 @@ import android.content.Intent
 import android.os.Bundle
 import android.view.View
 import android.webkit.WebChromeClient
+import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.FrameLayout
+import com.ipanda.domain.Constants
+import java.io.ByteArrayInputStream
 
 class WebViewActivity : Activity() {
 
@@ -70,7 +74,25 @@ class WebViewActivity : Activity() {
             settings.loadWithOverviewMode = true
             settings.useWideViewPort = true
 
-            webViewClient = WebViewClient()
+            webViewClient = object : WebViewClient() {
+                private val blockRegex = Regex(Constants.BLOCK_REGEX, RegexOption.IGNORE_CASE)
+
+                override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
+                    val url = request?.url?.toString() ?: ""
+                    if (blockRegex.containsMatchIn(url)) {
+                        return true
+                    }
+                    return false
+                }
+
+                override fun shouldInterceptRequest(view: WebView?, request: WebResourceRequest?): WebResourceResponse? {
+                    val url = request?.url?.toString() ?: ""
+                    if (blockRegex.containsMatchIn(url)) {
+                        return WebResourceResponse("text/plain", "utf-8", ByteArrayInputStream("Blocked".toByteArray()))
+                    }
+                    return super.shouldInterceptRequest(view, request)
+                }
+            }
             webChromeClient = object : WebChromeClient() {
                 override fun onShowCustomView(view: View?, callback: CustomViewCallback?) {
                     if (customView != null) {

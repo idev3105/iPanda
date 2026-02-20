@@ -20,6 +20,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.ipanda.domain.StreamSource
 import com.ipanda.domain.StreamType
+import com.ipanda.domain.Constants
 import java.util.Locale
 import io.github.oshai.kotlinlogging.KotlinLogging
 import uk.co.caprica.vlcj.factory.discovery.NativeDiscovery
@@ -28,6 +29,7 @@ import uk.co.caprica.vlcj.player.base.MediaPlayer
 import uk.co.caprica.vlcj.player.base.MediaPlayerEventAdapter
 import com.multiplatform.webview.web.WebView
 import com.multiplatform.webview.web.rememberWebViewState
+import com.multiplatform.webview.web.rememberWebViewNavigator
 import androidx.compose.ui.awt.SwingPanel
 import java.awt.Component
 import java.awt.Color as AwtColor
@@ -150,8 +152,21 @@ fun PlayerScreen(
                     currentStreamSource.url
                 }
                 val webViewState = rememberWebViewState(webViewUrl)
+                val navigator = rememberWebViewNavigator()
+                val blockRegex = remember { Regex(Constants.BLOCK_REGEX, RegexOption.IGNORE_CASE) }
+
+                LaunchedEffect(webViewState.lastLoadedUrl) {
+                    webViewState.lastLoadedUrl?.let { url ->
+                        if (blockRegex.containsMatchIn(url)) {
+                            navigator.stopLoading()
+                            logger.info { "Blocked request/navigation by regex: $url" }
+                        }
+                    }
+                }
+
                 WebView(
                     state = webViewState,
+                    navigator = navigator,
                     modifier = Modifier.fillMaxSize()
                 )
             } else {
