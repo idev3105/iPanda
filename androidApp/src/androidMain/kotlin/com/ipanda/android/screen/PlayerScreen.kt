@@ -34,6 +34,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackException
+import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
@@ -90,6 +92,12 @@ fun PlayerScreen(
                     .build()
                     .apply {
                         playWhenReady = true
+                        addListener(object : Player.Listener {
+                            override fun onPlayerError(error: PlaybackException) {
+                                logger.error(error) { "Player error occurred: ${error.message}" }
+                                forceWebView = true
+                            }
+                        })
                     }
             }
 
@@ -109,10 +117,15 @@ fun PlayerScreen(
                 }
             }
 
-            if (streamSource.type == StreamType.IFRAME) {
+            if (streamSource.type == StreamType.IFRAME || forceWebView) {
                 // Launch dedicated WebViewActivity for IFRAME - avoids Compose SurfaceView conflict
                 LaunchedEffect(Unit) {
-                    WebViewActivity.launch(context, streamSource.url)
+                    val fallbackUrl = if (forceWebView) {
+                        streamSources.find { it.type == StreamType.IFRAME }?.url ?: streamSource.url
+                    } else {
+                        streamSource.url
+                    }
+                    WebViewActivity.launch(context, fallbackUrl)
                     onBack()
                 }
             } else {

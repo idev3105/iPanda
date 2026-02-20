@@ -145,12 +145,25 @@ class StreamSniffer(
 
     override suspend fun sniffStreamViaIframe(targetUrl: String): List<StreamSource> {
         val iframeUrl = extractIframe(targetUrl)
-        return if (iframeUrl != null) {
+        
+        if (!iframeUrl.isNullOrEmpty()) {
             logger.info { "Extracted iframe URL: $iframeUrl. Proceeding to sniff stream from iframe." }
-            sniffStream(iframeUrl)
+            val result = sniffStream(iframeUrl)
+            
+            return result + StreamSource(
+                url = iframeUrl,
+                type = StreamType.IFRAME,
+                quality = "auto"
+            )
         } else {
-            logger.warn { "No iframe found on $targetUrl" }
-            emptyList()
+            logger.info { "No iframe found on $targetUrl. Returning original URL as IFRAME." }
+            return listOf(
+                StreamSource(
+                    url = targetUrl,
+                    type = StreamType.IFRAME,
+                    quality = "auto"
+                )
+            )
         }
     }
 }

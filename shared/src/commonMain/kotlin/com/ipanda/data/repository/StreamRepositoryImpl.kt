@@ -54,17 +54,7 @@ class StreamRepositoryImpl(
         }
 
         // Do expensive sniffing
-        var result = sniffer.sniffStreamViaIframe(episodeUrl)
-
-        if (result.isEmpty()) {
-            result = listOf(
-                StreamSource(
-                    url = episodeUrl,
-                    type = com.ipanda.domain.StreamType.IFRAME,
-                    quality = "auto"
-                )
-            )
-        }
+        val result = sniffer.sniffStreamViaIframe(episodeUrl)
 
         if (result.isNotEmpty()) {
             mutex.withLock {

@@ -24,6 +24,8 @@ import java.util.Locale
 import io.github.oshai.kotlinlogging.KotlinLogging
 import uk.co.caprica.vlcj.factory.discovery.NativeDiscovery
 import uk.co.caprica.vlcj.player.component.EmbeddedMediaPlayerComponent
+import uk.co.caprica.vlcj.player.base.MediaPlayer
+import uk.co.caprica.vlcj.player.base.MediaPlayerEventAdapter
 import com.multiplatform.webview.web.WebView
 import com.multiplatform.webview.web.rememberWebViewState
 import androidx.compose.ui.awt.SwingPanel
@@ -142,7 +144,12 @@ fun PlayerScreen(
                 .onPointerEvent(PointerEventType.Move) { interactionOccurred() }
         ) {
             if (currentStreamSource.type == StreamType.IFRAME || forceWebView) {
-                val webViewState = rememberWebViewState(currentStreamSource.url)
+                val webViewUrl = if (forceWebView) {
+                    streamSources.find { it.type == StreamType.IFRAME }?.url ?: currentStreamSource.url
+                } else {
+                    currentStreamSource.url
+                }
+                val webViewState = rememberWebViewState(webViewUrl)
                 WebView(
                     state = webViewState,
                     modifier = Modifier.fillMaxSize()
@@ -152,6 +159,7 @@ fun PlayerScreen(
                     url = currentStreamSource.url,
                     headers = currentStreamSource.headers,
                     isPlaying = !forceWebView,
+                    onError = { forceWebView = true },
                     modifier = Modifier.fillMaxSize()
                 )
             }
@@ -254,6 +262,7 @@ fun VlcVideoPlayer(
     url: String,
     headers: Map<String, String> = emptyMap(),
     isPlaying: Boolean = true,
+    onError: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val mediaPlayerComponent = remember {
@@ -281,6 +290,13 @@ fun VlcVideoPlayer(
                 options.add(":http-user-agent=$value")
             }
         }
+        
+        mediaPlayerComponent.mediaPlayer().events().addMediaPlayerEventListener(object : MediaPlayerEventAdapter() {
+            override fun error(mediaPlayer: MediaPlayer?) {
+                logger.error { "VLC Player error occurred for URL: $url" }
+                onError()
+            }
+        })
         
         mediaPlayerComponent.mediaPlayer().media().play(url, *options.toTypedArray())
     }
