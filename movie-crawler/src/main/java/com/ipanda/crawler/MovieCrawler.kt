@@ -57,6 +57,7 @@ class MovieCrawler(private val fetcher: PageFetcher = JsoupPageFetcher()) : IMov
         logger.info { "Crawling movie details from $url" }
         return try {
             val doc = fetcher.fetch(url)
+            applyPageScripts(doc)
 
             val title = doc.selectFirst("h1.title")
                 ?.text()?.substringBefore("lượt xem")?.trim().orEmpty()
@@ -108,6 +109,61 @@ class MovieCrawler(private val fetcher: PageFetcher = JsoupPageFetcher()) : IMov
 
     // ── Private Helpers ──────────────────────────────────────────────────
 
+    private fun applyPageScripts(doc: org.jsoup.nodes.Document) {
+        // Script 1: Server titles
+        doc.select(".server-title").forEach { element ->
+            val text = element.text()
+            val cleanedText = text.replace(Regex("\\s*\\(.*?\\)\\s*"), "")
+            element.text(cleanedText)
+        }
+
+        // Script 2: Episode links (Related parts/seasons)
+        val episodeLinks = doc.select(".streaming-server.btn-link-backup.btn-episode.black.episode-link")
+        val listEpisode = doc.selectFirst(".list-episode") ?: return
+
+        val outsideTitles = episodeLinks.map {
+            it.text().replace(Regex("\\(.*?\\)"), "").trim()
+        }.filter { it.isNotEmpty() }.toSet()
+
+        if (episodeLinks.isEmpty() || episodeLinks.size == 10 || outsideTitles.size >= 10) {
+            listEpisode.html("<li class=\"episode\"><a href=\"#\" class=\"streaming-server btn-link-backup btn-episode black episode-link\">Không có phần phim liên quan</a></li>")
+        } else {
+            val regex = Regex("\\((.*?)\\)")
+            val pageTitle = doc.title()
+            val activeTitle = regex.find(pageTitle)?.groupValues?.get(1) ?: ""
+
+            data class LinkInfo(val element: org.jsoup.nodes.Element, val extractedTitle: String)
+
+            val linkInfos = episodeLinks.map { element ->
+                val title = regex.find(element.text())?.groupValues?.get(1) ?: ""
+                LinkInfo(element, title)
+            }
+
+            val partLinks = linkInfos.filter { it.extractedTitle.matches(Regex("^Phần \\d+$")) }
+                .sortedBy { it.extractedTitle.filter { char -> char.isDigit() }.toIntOrNull() ?: 0 }
+
+            val ovaLinks = linkInfos.filter { it.extractedTitle.matches(Regex("^OVA \\d+$")) }
+                .sortedBy { it.extractedTitle.filter { char -> char.isDigit() }.toIntOrNull() ?: 0 }
+
+            val otherLinks = linkInfos.filter { info ->
+                !info.extractedTitle.matches(Regex("^Phần \\d+$")) && !info.extractedTitle.matches(Regex("^OVA \\d+$"))
+            }
+
+            val sortedLinks = partLinks + ovaLinks + otherLinks
+
+            listEpisode.empty()
+            sortedLinks.forEach { info ->
+                info.element.text(info.extractedTitle)
+                if (info.extractedTitle.isNotEmpty() && info.extractedTitle == activeTitle) {
+                    info.element.addClass("active")
+                }
+                val li = doc.createElement("li").addClass("episode")
+                li.appendChild(info.element)
+                listEpisode.appendChild(li)
+            }
+        }
+    }
+
     private fun parseMovie(element: Element): Movie? {
         return try {
             val thumbLink = element.selectFirst(".myui-vodlist__thumb") ?: return null
@@ -133,11 +189,18 @@ class MovieCrawler(private val fetcher: PageFetcher = JsoupPageFetcher()) : IMov
     }
 
     private suspend fun extractSeasons(doc: Document, baseUrl: String): List<Movie> = coroutineScope {
-        val seasonUrls = doc.select(".list-episode a")
+        val rawSeasonUrls = doc.select(".list-episode a")
             .map { it.attr("href") }
+            .filter { it.isNotBlank() && it != "#" }
+        
+        logger.debug { "Raw season URLs: $rawSeasonUrls" }
+
+        val seasonUrls = rawSeasonUrls
             .map { resolveUrl(baseUrl, it) }
             .filter { it != baseUrl }
             .distinct()
+        
+        logger.debug { "Resolved season URLs: $seasonUrls" }
 
         seasonUrls.map { url ->
             async(Dispatchers.IO) {

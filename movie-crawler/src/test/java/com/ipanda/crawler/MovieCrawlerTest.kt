@@ -83,7 +83,7 @@ class MovieCrawlerTest {
         runBlocking {
             val crawler = MovieCrawler()
             // Using "Linh Khế" as an example which typically has seasons/related parts
-            val url = "https://hhhtq.team/phim/243/"
+            val url = "https://hhhtq.team/phim/251/"
             val movie = crawler.crawlMovieDetails(url)
 
             assertNotNull(movie)
