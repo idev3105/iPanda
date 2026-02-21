@@ -327,23 +327,6 @@ private fun SeasonItem(movie: Movie, isActive: Boolean, onClick: () -> Unit) {
         )
     }
 }
-                    sniffError?.let {
-                        Spacer(Modifier.height(12.dp))
-                        Card(
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
-                        ) {
-                            Text(
-                                text = it,
-                                modifier = Modifier.padding(12.dp),
-                                color = MaterialTheme.colorScheme.onErrorContainer
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
