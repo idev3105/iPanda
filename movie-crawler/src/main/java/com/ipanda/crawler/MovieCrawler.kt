@@ -9,7 +9,9 @@ import kotlinx.coroutines.*
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
+import kotlinx.serialization.json.Json
 import java.net.URI
+
 
 private val logger = KotlinLogging.logger {}
 
@@ -21,37 +23,49 @@ class JsoupPageFetcher : PageFetcher {
     override fun fetch(url: String): Document = Jsoup.connect(url).get()
 }
 
-class MovieCrawler(private val fetcher: PageFetcher = JsoupPageFetcher()) : IMovieCrawler {
+class MovieCrawler(
+    private val config: CrawlerConfig,
+    private val fetcher: PageFetcher = JsoupPageFetcher()
+) : IMovieCrawler {
+
+    constructor() : this(loadDefaultConfig())
 
     companion object {
-        private const val BASE_URL = "https://hhhtq.team"
+        private fun loadDefaultConfig(): CrawlerConfig {
+            val content = MovieCrawler::class.java.getResourceAsStream("/scrapers/hhhtq.json")
+                ?.bufferedReader()?.use { it.readText() }
+                ?: throw IllegalStateException("Default config not found")
+            return Json { ignoreUnknownKeys = true }.decodeFromString<CrawlerConfig>(content)
+        }
     }
+
 
     // ── Public API ───────────────────────────────────────────────────────
     override suspend fun crawlHotMovies(): List<Movie> {
-        logger.info { "Crawling hot movies..." }
-        val doc = fetcher.fetch("$BASE_URL/")
-        val hotSection = doc.select("#index-hot").first() ?: return emptyList()
-        val movieElements = hotSection.select(".myui-vodlist__box")
+        logger.info { "Crawling hot movies from ${config.siteName}..." }
+        val doc = fetcher.fetch("${config.baseUrl}/")
+        val hotSection = doc.select(config.selectors.hotSection).first() ?: return emptyList()
+        val movieElements = hotSection.select(config.selectors.hotMovieBox)
         logger.debug { "Found ${movieElements.size} movie elements in hot section" }
         return movieElements.mapNotNull { parseMovie(it) }
     }
 
     override suspend fun crawlCategorizedHotMovies(): List<MovieCategory> {
-        logger.info { "Crawling categorized hot movies..." }
-        val doc = fetcher.fetch("$BASE_URL/")
-        val panels = doc.select(".myui-panel.myui-panel-bg")
+        logger.info { "Crawling categorized hot movies from ${config.siteName}..." }
+        val doc = fetcher.fetch("${config.baseUrl}/")
+        val panels = doc.select(config.selectors.categoryPanel)
         logger.debug { "Found ${panels.size} category panels" }
         return panels.mapNotNull { panel ->
-            val title = panel.select("h3").text().trim()
+            val title = panel.select(config.selectors.categoryTitle).text().trim()
             if (title.isEmpty()) return@mapNotNull null
 
-            val movieElements = panel.select(".myui-vodlist__box")
+            val movieElements = panel.select(config.selectors.categoryMovieBox)
             val movies = movieElements.mapNotNull { parseMovie(it) }
 
             if (movies.isEmpty()) null else MovieCategory(title, movies)
         }
     }
+
 
     override suspend fun crawlMovieDetails(url: String): Movie? {
         logger.info { "Crawling movie details from $url" }
@@ -59,34 +73,40 @@ class MovieCrawler(private val fetcher: PageFetcher = JsoupPageFetcher()) : IMov
             val doc = fetcher.fetch(url)
             applyPageScripts(doc)
 
-            val title = doc.selectFirst("h1.title")
-                ?.text()?.substringBefore("lượt xem")?.trim().orEmpty()
+            val titleElement = doc.selectFirst(config.selectors.detailTitle)
+            val title = if (config.selectors.detailTitleCleanup != null) {
+                titleElement?.text()?.substringBefore(config.selectors.detailTitleCleanup)?.trim().orEmpty()
+            } else {
+                titleElement?.text()?.trim().orEmpty()
+            }
 
-            val description = doc.select("#desc > div > div > div > span.sketch.content")
+            val description = doc.select(config.selectors.detailDescription)
                 .text().trim()
 
-            val viewCount = doc.select(
-                "body > div.container > div:nth-child(1) > div > div.myui-content__detail > h1:nth-child(3)"
-            ).text().trim()
+            val viewCount = doc.select(config.selectors.detailViewCount).text().trim()
 
-            val plot = doc.select(".myui-content__detail p")
-                .firstOrNull { it.text().contains("Nội dung") }
+            val plot = doc.select(config.selectors.detailPlot)
+                .firstOrNull { it.text().contains(config.selectors.detailPlotMarker) }
                 ?.text()?.substringAfter(":")?.trim()
                 ?: description
 
-            val thumb = doc.selectFirst(".myui-vodlist__thumb img") ?: doc.selectFirst(".myui-content__thumb img")
-            val posterUrl = thumb?.let {
-                it.attr("data-original").ifEmpty { it.attr("src") }
-            }.orEmpty()
+            var posterUrl = ""
+            for (selector in config.selectors.detailThumbs) {
+                val thumb = doc.selectFirst(selector)
+                if (thumb != null) {
+                    posterUrl = thumb.attr(config.selectors.itemPosterAttr).ifEmpty { thumb.attr("src") }
+                    if (posterUrl.isNotEmpty()) break
+                }
+            }
 
-            val year = doc.select(".myui-content__detail p")
-                .firstOrNull { it.text().contains("Năm") }
+            val year = doc.select(config.selectors.detailPlot)
+                .firstOrNull { it.text().contains(config.selectors.detailYearMarker) }
                 ?.text()?.filter { it.isDigit() }
                 ?.toIntOrNull() ?: 0
 
             val id = extractIdFromUrl(url)
 
-            val playlist = doc.select("#playlist1").first()
+            val playlist = doc.select(config.selectors.detailPlaylist).first()
             val episodes = playlist?.let { parseEpisodes(it, url) } ?: emptyList()
 
             Movie(
@@ -106,6 +126,7 @@ class MovieCrawler(private val fetcher: PageFetcher = JsoupPageFetcher()) : IMov
             null
         }
     }
+
 
     // ── Private Helpers ──────────────────────────────────────────────────
 
@@ -166,18 +187,18 @@ class MovieCrawler(private val fetcher: PageFetcher = JsoupPageFetcher()) : IMov
 
     private fun parseMovie(element: Element): Movie? {
         return try {
-            val thumbLink = element.selectFirst(".myui-vodlist__thumb") ?: return null
-            val title = thumbLink.attr("title")
-            val relativeUrl = thumbLink.attr("href")
+            val thumbLink = element.selectFirst(config.selectors.itemThumb) ?: return null
+            val title = thumbLink.attr(config.selectors.itemTitleAttr)
+            val relativeUrl = thumbLink.attr(config.selectors.itemUrlAttr)
             val id = extractIdFromUrl(relativeUrl)
-            val posterUrl = thumbLink.attr("data-original").ifEmpty {
+            val posterUrl = thumbLink.attr(config.selectors.itemPosterAttr).ifEmpty {
                 extractUrlFromStyle(thumbLink.attr("style"))
             }
 
             Movie(
                 id = id,
                 title = title,
-                url = resolveUrl("$BASE_URL/", relativeUrl),
+                url = resolveUrl("${config.baseUrl}/", relativeUrl),
                 year = 0,
                 posterUrl = posterUrl,
                 plot = ""
@@ -188,8 +209,9 @@ class MovieCrawler(private val fetcher: PageFetcher = JsoupPageFetcher()) : IMov
         }
     }
 
+
     private suspend fun extractSeasons(doc: Document, baseUrl: String): List<Movie> = coroutineScope {
-        val rawSeasonUrls = doc.select(".list-episode a")
+        val rawSeasonUrls = doc.select(config.selectors.seasonLink)
             .map { it.attr("href") }
             .filter { it.isNotBlank() && it != "#" }
         
@@ -206,13 +228,21 @@ class MovieCrawler(private val fetcher: PageFetcher = JsoupPageFetcher()) : IMov
             async(Dispatchers.IO) {
                 try {
                     val sDoc = fetcher.fetch(url)
-                    val title = sDoc.selectFirst("h1.title")
-                        ?.text()?.substringBefore("lượt xem")?.trim().orEmpty()
+                    val titleElement = sDoc.selectFirst(config.selectors.detailTitle)
+                    val title = if (config.selectors.detailTitleCleanup != null) {
+                        titleElement?.text()?.substringBefore(config.selectors.detailTitleCleanup)?.trim().orEmpty()
+                    } else {
+                        titleElement?.text()?.trim().orEmpty()
+                    }
                     
-                    val thumb = sDoc.selectFirst(".myui-vodlist__thumb img") ?: sDoc.selectFirst(".myui-content__thumb img")
-                    val posterUrl = thumb?.let {
-                        it.attr("data-original").ifEmpty { it.attr("src") }
-                    }.orEmpty()
+                    var posterUrl = ""
+                    for (selector in config.selectors.detailThumbs) {
+                        val thumb = sDoc.selectFirst(selector)
+                        if (thumb != null) {
+                            posterUrl = thumb.attr(config.selectors.itemPosterAttr).ifEmpty { thumb.attr("src") }
+                            if (posterUrl.isNotEmpty()) break
+                        }
+                    }
 
                     Movie(
                         id = extractIdFromUrl(url),
@@ -229,12 +259,16 @@ class MovieCrawler(private val fetcher: PageFetcher = JsoupPageFetcher()) : IMov
     }
 
     private fun parseEpisodes(container: Element, baseUrl: String): List<Episode> =
-        container.select("li a").map { a ->
+        container.select(config.selectors.episodeList).map { a ->
+            val title = config.selectors.episodeTitleInner?.let { a.select(it).text().trim() } 
+                ?: a.text().trim()
+            
             Episode(
-                title = a.select("b").text().trim().ifEmpty { a.text().trim() },
-                url = resolveUrl(baseUrl, a.attr("href"))
+                title = title.ifEmpty { a.text().trim() },
+                url = resolveUrl(baseUrl, a.attr(config.selectors.episodeUrlAttr))
             )
         }
+
 
     private fun extractIdFromUrl(url: String): String =
         url.trim('/').split("/").lastOrNull().orEmpty()

@@ -1,0 +1,32 @@
+{
+  "siteName": "HHHTQ",
+  "baseUrl": "https://hhhtq.team",
+  "selectors": {
+    "hotSection": "#index-hot",
+    "hotMovieBox": ".myui-vodlist__box",
+    "categoryPanel": ".myui-panel.myui-panel-bg",
+    "categoryTitle": "h3",
+    "categoryMovieBox": ".myui-vodlist__box",
+    "itemThumb": ".myui-vodlist__thumb",
+    "itemTitleAttr": "title",
+    "itemUrlAttr": "href",
+    "itemPosterAttr": "data-original",
+    "detailTitle": "h1.title",
+    "detailTitleCleanup": "lượt xem",
+    "detailDescription": "#desc > div > div > div > span.sketch.content",
+    "detailViewCount": "body > div.container > div:nth-child(1) > div > div.myui-content__detail > h1:nth-child(3)",
+    "detailPlot": ".myui-content__detail p",
+    "detailPlotMarker": "Nội dung",
+    "detailThumbs": [
+      ".myui-vodlist__thumb img",
+      ".myui-content__thumb img"
+    ],
+    "detailYearMarker": "Năm",
+    "detailPlaylist": "#playlist1",
+    "episodeList": "li a",
+    "episodeTitleInner": "b",
+    "episodeUrlAttr": "href",
+    "seasonList": ".list-episode",
+    "seasonLink": ".list-episode a"
+  }
+}
